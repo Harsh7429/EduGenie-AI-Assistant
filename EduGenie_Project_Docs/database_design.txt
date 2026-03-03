@@ -1,0 +1,41 @@
+Database Name
+
+edugenie_db
+
+Description
+
+The EduGenie system uses a relational MySQL database to store user information, syllabus structure, AI-generated academic content, chat history, and resume feedback. The database follows normalization principles and enforces data integrity using primary and foreign keys.
+
+Tables Overview
+
+users
+Stores student authentication and identity details. Passwords are stored in encrypted (hashed) form for security.
+
+subjects
+Stores MCA subjects such as OS, CN, DBMS, and OOP. Each subject is unique.
+
+topics
+Stores topics under each subject. Implements a one-to-many relationship between subjects and topics.
+
+notes
+Stores AI-generated, exam-oriented notes linked to users, subjects, and topics for revision and caching.
+
+chat_history
+Stores academic questions and AI responses, enabling revision and context-aware learning.
+
+resume_feedback
+Stores AI-generated resume and career guidance based on user role preferences.
+
+Database Concepts Used
+
+Primary Keys
+
+Foreign Keys
+
+One-to-Many Relationships
+
+Normalization
+
+Referential Integrity
+
+SQL Joins

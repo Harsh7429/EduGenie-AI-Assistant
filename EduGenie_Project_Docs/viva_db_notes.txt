@@ -1,0 +1,9 @@
+“The database is designed using MySQL and follows normalization principles.”
+
+“Foreign keys are used to maintain relationships between users, subjects, and academic content.”
+
+“Passwords are stored in hashed form for security.”
+
+“AI-generated notes and chat history are stored for revision and reduced recomputation.”
+
+“Cascade delete is used to maintain data consistency.”
