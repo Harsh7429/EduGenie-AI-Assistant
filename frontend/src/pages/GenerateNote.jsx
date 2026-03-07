@@ -2,6 +2,42 @@ import { useEffect, useState } from "react";
 import api from "../services/api";
 import { toast } from "../components/Toast";
 
+// Simple markdown renderer — handles bold, headings, bullets, line breaks
+function RenderMarkdown({ text }) {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^### (.+)/.test(line)) {
+      elements.push(<h3 key={i} style={{ color:'#a78bfa', fontSize:'1rem', fontWeight:700, marginTop:18, marginBottom:6 }}>{line.replace(/^### /,'')}</h3>);
+    } else if (/^## (.+)/.test(line)) {
+      elements.push(<h2 key={i} style={{ color:'#818cf8', fontSize:'1.1rem', fontWeight:700, marginTop:22, marginBottom:8 }}>{line.replace(/^## /,'')}</h2>);
+    } else if (/^# (.+)/.test(line)) {
+      elements.push(<h1 key={i} style={{ color:'#c4b5fd', fontSize:'1.2rem', fontWeight:800, marginTop:24, marginBottom:10 }}>{line.replace(/^# /,'')}</h1>);
+    } else if (/^\* (.+)/.test(line) || /^- (.+)/.test(line)) {
+      elements.push(<div key={i} style={{ display:'flex', gap:8, marginBottom:4, paddingLeft:8 }}><span style={{color:'#818cf8', flexShrink:0}}>•</span><span style={{color:'#cbd5e1', lineHeight:1.7}}>{renderInline(line.replace(/^\*\s|^-\s/,''))}</span></div>);
+    } else if (line.trim() === '') {
+      elements.push(<div key={i} style={{ height:8 }} />);
+    } else {
+      elements.push(<p key={i} style={{ color:'#cbd5e1', lineHeight:1.85, marginBottom:6, fontSize:'0.91rem' }}>{renderInline(line)}</p>);
+    }
+    i++;
+  }
+  return <div>{elements}</div>;
+}
+
+function renderInline(text) {
+  // Handle **bold** and *italic*
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g);
+  return parts.map((part, i) => {
+    if (/^\*\*[^*]+\*\*$/.test(part)) return <strong key={i} style={{color:'#e2e8f0', fontWeight:700}}>{part.slice(2,-2)}</strong>;
+    if (/^\*[^*]+\*$/.test(part)) return <em key={i} style={{color:'#a5b4fc'}}>{part.slice(1,-1)}</em>;
+    return part;
+  });
+}
+
 const L = ({ children }) => (
   <label style={{ display:"block", fontSize:"0.75rem", color:"#64748b", marginBottom:7,
     fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em" }}>{children}</label>
@@ -181,8 +217,8 @@ export default function GenerateNote() {
               </div>
 
               {/* Note content */}
-              <div style={{ whiteSpace:"pre-line", lineHeight:1.9, color:"#cbd5e1", fontSize:"0.91rem" }}>
-                {note}
+              <div style={{ lineHeight:1.9, fontSize:"0.91rem" }}>
+                <RenderMarkdown text={note} />
               </div>
             </div>
           )}
