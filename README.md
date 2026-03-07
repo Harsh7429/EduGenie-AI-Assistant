@@ -1,67 +1,60 @@
-# 🎓 EduGenie — AI-Powered Learning Assistant
+# EduGenie — AI-Powered MCA Study Assistant
 
-> **MCA Final Year Project 2026** | Full-Stack AI Platform for Smart Learning
+<div align="center">
 
-EduGenie is a full-stack AI-powered learning platform designed for MCA students. It uses **Groq Llama 3** to generate exam-ready notes, practice quizzes, track academic progress, and help plan final year projects — all in one place.
+![EduGenie Banner](https://img.shields.io/badge/EduGenie-AI%20Learning%20Platform-6366f1?style=for-the-badge&logo=openai&logoColor=white)
+
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20App-22d3ee?style=for-the-badge)](https://edu-genie-ai-assistant.vercel.app)
+[![Backend](https://img.shields.io/badge/Backend-Render-34d399?style=for-the-badge)](https://edugenie-ai-assistant.onrender.com)
+[![License](https://img.shields.io/badge/License-MIT-f472b6?style=for-the-badge)](LICENSE)
+
+**Your AI-powered MCA study companion. Master every topic with smart notes, adaptive quizzes, and real-time progress tracking.**
+
+</div>
 
 ---
 
-## 🌐 Live Demo
+## 🚀 Live Demo
 
-| Service | URL |
-|---------|-----|
-| 🖥️ Frontend | *Coming soon — Vercel* |
-| ⚙️ Backend API | *Coming soon — Render* |
+🌐 **Frontend:** https://edu-genie-ai-assistant.vercel.app  
+⚙️ **Backend API:** https://edugenie-ai-assistant.onrender.com
+
+> ⚠️ The backend runs on a free Render instance — first request may take ~50 seconds to wake up.
 
 ---
 
 ## ✨ Features
 
-| Feature | Description |
-|---------|-------------|
-| 📝 **AI Note Generation** | Generates structured, exam-ready notes for any subject and topic |
-| 🧠 **AI Quiz System** | MCQs with Easy/Medium/Hard difficulty, countdown timer, auto-submit |
-| 💬 **AI Chat Tutor** | Ask any academic question and get instant AI-powered answers |
-| 📊 **Progress Analytics** | Track scores, subject performance, and learning trends over time |
-| 🏠 **Personal Dashboard** | See your stats — quizzes taken, notes generated, average score |
-| 🎓 **FYP Guide** | AI-generated Final Year Project roadmap with tech stack and viva prep |
-| 📄 **Resume Builder** | Build ATS-optimized LaTeX resume or improve your existing one with AI |
+### 🧠 AI-Powered Learning
+- **Generate Notes** — Instant structured, exam-ready notes for any MCA topic powered by Groq LLaMA
+- **Generate Quizzes** — Adaptive MCQs with Easy / Medium / Hard difficulty levels
+- **AI Chat Tutor** — Conversational AI tutor focused on MCA syllabus with markdown-formatted responses
+
+### 📊 Progress Tracking
+- **Analytics Dashboard** — Visual performance charts, subject-wise breakdown, score trends
+- **Subject Progress** — Track coverage across all 4 semesters and 19 subjects
+- **Quiz History** — Review all past attempts with scores
+
+### 🎓 Final Year Project Tools
+- **FYP Guide** — AI-generated project roadmap based on your domain and interests
+- **Resume Builder** — ATS-optimized LaTeX resume generator with PDF export
+
+### 📱 Fully Responsive
+- Mobile-friendly design with hamburger navigation
+- Works seamlessly on phones, tablets, and desktops
 
 ---
 
 ## 🛠️ Tech Stack
 
-```
-Frontend    →  React + Vite + Tailwind CSS
-Backend     →  Flask (Python)
-Database    →  PostgreSQL (psycopg2)
-AI / LLM    →  Groq API — Llama 3
-Auth        →  Flask-JWT-Extended + bcrypt
-Deployment  →  Render (backend) + Vercel (frontend) + Neon.tech (database)
-```
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────┐
-│           React Frontend (Vite)             │
-│     Dashboard | Quiz | Notes | Analytics    │
-└──────────────────┬──────────────────────────┘
-                   │ REST API (axios)
-                   ▼
-┌─────────────────────────────────────────────┐
-│           Flask REST API Backend            │
-│    JWT Auth | Routes | Business Logic       │
-└──────┬───────────────────────┬──────────────┘
-       │                       │
-       ▼                       ▼
-┌─────────────┐     ┌──────────────────────┐
-│  PostgreSQL │     │   Groq LLM API       │
-│  (Neon.tech)│     │   Llama 3 Model      │
-└─────────────┘     └──────────────────────┘
-```
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18, Vite, Tailwind CSS |
+| **Backend** | Python, Flask, Flask-JWT-Extended |
+| **Database** | PostgreSQL (Neon.tech) |
+| **AI Engine** | Groq API (LLaMA 3.1 8B Instant) |
+| **Deployment** | Vercel (frontend) + Render (backend) |
+| **Auth** | JWT (JSON Web Tokens) + bcrypt |
 
 ---
 
@@ -70,31 +63,32 @@ Deployment  →  Render (backend) + Vercel (frontend) + Neon.tech (database)
 ```
 EduGenie-AI-Assistant/
 ├── backend/
-│   ├── app.py              ← All Flask routes
-│   ├── ai.py               ← Groq AI functions
-│   ├── db.py               ← PostgreSQL connection
-│   ├── config.py           ← DB config (reads .env)
-│   └── requirements.txt    ← Python dependencies
+│   ├── app.py              # Flask API routes
+│   ├── ai.py               # Groq AI integration
+│   ├── db.py               # PostgreSQL connection
+│   ├── config.py           # Configuration
+│   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/          ← All page components
-│   │   ├── components/     ← Navbar, Layout, Toast
-│   │   └── services/
-│   │       └── api.js      ← All API calls
+│   │   ├── pages/          # React page components
+│   │   ├── components/     # Navbar, Layout, Toast
+│   │   └── services/       # API service layer
+│   ├── vercel.json         # SPA routing config
 │   └── package.json
 └── EduGenie_Project_Docs/
-    ├── database_schema.sql ← PostgreSQL schema
-    └── seed_data.sql       ← Semesters, subjects, topics
+    ├── database_design.txt
+    └── database_schema.sql
 ```
 
 ---
 
-## 🚀 Run Locally
+## ⚙️ Local Setup
 
 ### Prerequisites
-- Python 3.10+
 - Node.js 18+
-- PostgreSQL 14+
+- Python 3.10+
+- PostgreSQL (local or Neon.tech)
+- Groq API key (free at [console.groq.com](https://console.groq.com))
 
 ### 1. Clone the repo
 ```bash
@@ -102,7 +96,7 @@ git clone https://github.com/Harsh7429/EduGenie-AI-Assistant.git
 cd EduGenie-AI-Assistant
 ```
 
-### 2. Backend Setup
+### 2. Backend setup
 ```bash
 cd backend
 python -m venv venv
@@ -112,98 +106,110 @@ venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-Create a `.env` file inside `backend/`:
+Create `backend/.env`:
 ```env
-DB_HOST=localhost
+DB_HOST=127.0.0.1
 DB_NAME=edugenie_db
 DB_USER=postgres
 DB_PASSWORD=your_password
 DB_PORT=5432
-JWT_SECRET_KEY=your_secret_key
-GROQ_API_KEY=your_groq_api_key
+JWT_SECRET_KEY=your-secret-key
+GROQ_API_KEY=your-groq-api-key
 ```
 
 ```bash
 python app.py
-# Backend runs at http://localhost:5000
 ```
 
-### 3. Database Setup
-```bash
-# Create database in PostgreSQL
-psql -U postgres -c "CREATE DATABASE edugenie_db;"
-
-# Run schema
-psql -U postgres -d edugenie_db -f EduGenie_Project_Docs/database_schema.sql
-
-# Load seed data (subjects, topics, semesters)
-psql -U postgres -d edugenie_db -f EduGenie_Project_Docs/seed_data.sql
-```
-
-### 4. Frontend Setup
+### 3. Frontend setup
 ```bash
 cd frontend
 npm install
-npm run dev
-# Frontend runs at http://localhost:5173
 ```
 
----
+Create `frontend/.env`:
+```env
+VITE_API_URL=http://127.0.0.1:5000
+```
 
-## 🔑 Environment Variables
+```bash
+npm run dev
+```
 
-| Variable | Description |
-|----------|-------------|
-| `DB_HOST` | PostgreSQL host |
-| `DB_NAME` | Database name |
-| `DB_USER` | Database user |
-| `DB_PASSWORD` | Database password |
-| `DB_PORT` | PostgreSQL port (5432) |
-| `JWT_SECRET_KEY` | Secret key for JWT tokens |
-| `GROQ_API_KEY` | Get free at [console.groq.com](https://console.groq.com) |
-
----
-
-## 📡 API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/signup` | POST | Register new user |
-| `/login` | POST | Login, returns JWT |
-| `/subjects` | GET | Get all subjects |
-| `/units/:subject_id` | GET | Get units for subject |
-| `/topics/subject/:id` | GET | Get topics for subject |
-| `/ai/generate-note` | POST | Generate AI note |
-| `/ai/generate-quiz` | POST | Generate AI quiz |
-| `/quizzes/:id/submit` | POST | Submit quiz score |
-| `/ai/chat` | POST | AI Chat Tutor |
-| `/ai/fyp-guide` | POST | Generate FYP guide |
-| `/ai/resume/generate` | POST | Build resume from form |
-| `/analytics/personal` | GET | Personal analytics |
-| `/dashboard/personal` | GET | Dashboard stats |
+### 4. Database
+Run the schema from `EduGenie_Project_Docs/database_schema.sql` in your PostgreSQL client, then seed with the provided seed file.
 
 ---
 
 ## 🗄️ Database Schema
 
 ```
-users → semesters → subjects → units → topics
-                                          ↓
-                              notes (AI generated)
-                              quizzes (AI generated)
-                              quiz_attempts (scores)
-                              user_progress (tracking)
+users           → id, name, email, password, created_at
+semesters       → id, name
+subjects        → id, name, code, semester_id, type, elective_group
+units           → id, name, subject_id
+topics          → id, name, unit_id
+notes           → id, user_id, subject_id, topic_id, content, created_at
+quizzes         → id, user_id, subject_id, topic_id, content (JSON), created_at
+quiz_attempts   → id, user_id, subject_id, topic_id, quiz_id, score, total_marks, attempt_date
+user_progress   → id, user_id, subject_id, average_score, progress_percentage
+elective_groups → id, name, semester_id
 ```
 
 ---
 
-## 👨‍💻 Developer
+## 🔌 API Endpoints
 
-**Harsh** — MCA Final Year Student  
-GitHub: [@Harsh7429](https://github.com/Harsh7429)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/signup` | Register new user |
+| POST | `/login` | Login & get JWT token |
+| GET | `/semesters` | Get all semesters |
+| GET | `/subjects/semester/:id` | Subjects by semester |
+| GET | `/units/:subject_id` | Units for a subject |
+| GET | `/topics/:unit_id` | Topics for a unit |
+| POST | `/ai/generate-note` | Generate AI study note |
+| POST | `/ai/generate-quiz` | Generate AI quiz |
+| POST | `/ai/chat` | AI Chat Tutor |
+| POST | `/ai/fyp-guide` | Generate FYP roadmap |
+| POST | `/ai/resume/generate` | Generate LaTeX resume |
+| GET | `/analytics/personal` | Personal performance stats |
+| GET | `/dashboard/personal` | Dashboard stats |
+| POST | `/quizzes/:id/submit` | Submit quiz & update progress |
+
+---
+
+## 🚀 Deployment
+
+### Frontend → Vercel
+1. Connect GitHub repo to Vercel
+2. Set root directory to `frontend`
+3. Add env var: `VITE_API_URL=https://your-backend.onrender.com`
+
+### Backend → Render
+1. Create Web Service on Render
+2. Set root directory to `backend`
+3. Build command: `pip install -r requirements.txt`
+4. Start command: `gunicorn app:app`
+5. Add all DB and API key env vars
+
+---
+
+## 👨‍💻 Author
+
+**Harsh Kumar**  
+MCA Final Year Project — 2025-26
+
+[![GitHub](https://img.shields.io/badge/GitHub-Harsh7429-181717?style=flat&logo=github)](https://github.com/Harsh7429)
 
 ---
 
 ## 📄 License
 
-This project is built as an MCA Final Year Project.
+This project is licensed under the MIT License.
+
+---
+
+<div align="center">
+Made with ❤️ for MCA students everywhere
+</div>
