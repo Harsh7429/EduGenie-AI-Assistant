@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import api from "../services/api";
 
 const SUBJECTS = [
@@ -19,6 +20,38 @@ const SUGGESTIONS = [
   "Difference between stack and queue",
 ];
 
+const mdStyles = `
+  .chat-md p { margin: 0 0 8px 0; }
+  .chat-md p:last-child { margin-bottom: 0; }
+  .chat-md ul, .chat-md ol { margin: 6px 0 8px 0; padding-left: 20px; }
+  .chat-md li { margin-bottom: 4px; }
+  .chat-md strong { color: #c7d2fe; font-weight: 700; }
+  .chat-md code {
+    background: rgba(99,102,241,0.2); border-radius: 4px;
+    padding: 1px 6px; font-size: 0.83em; font-family: monospace;
+    color: #a5f3fc;
+  }
+  .chat-md pre {
+    background: rgba(0,0,0,0.35); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; margin: 8px 0;
+    border: 1px solid rgba(99,102,241,0.2);
+  }
+  .chat-md pre code {
+    background: transparent; padding: 0; color: #e2e8f0;
+    font-size: 0.82em;
+  }
+  .chat-md h1, .chat-md h2, .chat-md h3 {
+    color: #818cf8; margin: 10px 0 6px 0; font-weight: 700;
+  }
+  .chat-md h1 { font-size: 1rem; }
+  .chat-md h2 { font-size: 0.95rem; }
+  .chat-md h3 { font-size: 0.9rem; }
+  .chat-md blockquote {
+    border-left: 3px solid #6366f1; margin: 8px 0;
+    padding: 4px 12px; color: #94a3b8;
+  }
+`;
+
 function MessageBubble({ msg }) {
   const isUser = msg.role === "user";
   return (
@@ -35,16 +68,20 @@ function MessageBubble({ msg }) {
         }}>✦</div>
       )}
       <div style={{
-        maxWidth: "75%", padding: "12px 16px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+        maxWidth: "75%", padding: "12px 16px",
+        borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
         background: isUser
           ? "linear-gradient(135deg, #6366f1, #4f46e5)"
           : "rgba(255,255,255,0.06)",
         border: isUser ? "none" : "1px solid rgba(255,255,255,0.08)",
         color: "#f1f5f9", fontSize: "0.88rem", lineHeight: 1.6,
         boxShadow: isUser ? "0 4px 16px rgba(99,102,241,0.3)" : "none",
-        whiteSpace: "pre-wrap", wordBreak: "break-word",
+        wordBreak: "break-word",
       }}>
-        {msg.content}
+        {isUser
+          ? <span style={{ whiteSpace: "pre-wrap" }}>{msg.content}</span>
+          : <div className="chat-md"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
+        }
       </div>
       {isUser && (
         <div style={{
@@ -88,15 +125,14 @@ function TypingIndicator() {
 }
 
 export default function ChatTutor() {
-  const [messages, setMessages]   = useState([]);
-  const [input, setInput]         = useState("");
-  const [loading, setLoading]     = useState(false);
-  const [subject, setSubject]     = useState("General MCA");
-  const bottomRef                 = useRef(null);
-  const inputRef                  = useRef(null);
+  const [messages, setMessages] = useState([]);
+  const [input, setInput]       = useState("");
+  const [loading, setLoading]   = useState(false);
+  const [subject, setSubject]   = useState("General MCA");
+  const bottomRef               = useRef(null);
+  const inputRef                = useRef(null);
 
   useEffect(() => {
-    // Welcome message
     setMessages([{
       role: "assistant",
       content: "👋 Hi! I'm EduGenie, your AI study tutor. I can help you understand any MCA topic — from Data Structures to Cloud Computing.\n\nWhat would you like to learn today?",
@@ -148,6 +184,7 @@ export default function ChatTutor() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 56px)", maxWidth: 800, margin: "0 auto" }}>
+      <style>{mdStyles}</style>
 
       {/* Header */}
       <div style={{ padding: "20px 0 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
@@ -178,7 +215,6 @@ export default function ChatTutor() {
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "20px 0", scrollbarWidth: "thin" }}>
-        {/* Suggestions — only on empty chat */}
         {messages.length === 1 && (
           <div style={{ marginBottom: 24 }}>
             <p style={{ color: "#475569", fontSize: "0.75rem", textTransform: "uppercase",
