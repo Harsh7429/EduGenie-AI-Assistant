@@ -174,3 +174,48 @@ body::before {
 /* ── Cyan accent ── */
 .accent-cyan { color: var(--cyan); }
 .accent-violet { color: #a78bfa; }
+
+/* ── Mobile Responsive Overrides ── */
+@media (max-width: 767px) {
+  /* Stack all two-panel layouts */
+  [style*="340px 1fr"],
+  [style*="360px 1fr"],
+  [style*="400px 1fr"],
+  [style*="1fr 320px"],
+  [style*="1fr 300px"],
+  [style*="1fr 280px"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Stat grids: 4-col → 2-col */
+  [style*="repeat(4,1fr)"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Analytics 2-col charts → 1-col */
+  [style*="1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Navbar: hide labels on very small screens */
+  .nav-label {
+    display: none;
+  }
+
+  /* Reduce page padding on mobile */
+  .page-container {
+    padding: 16px !important;
+  }
+
+  /* Quiz answer options full width */
+  [style*="repeat(2, 1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* On very small phones, single column everything */
+  [style*="repeat(2,1fr)"] {
+    grid-template-columns: 1fr !important;
+  }
+}
