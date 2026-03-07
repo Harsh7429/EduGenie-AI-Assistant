@@ -1,47 +1,40 @@
-import mysql.connector
+import psycopg2
+import psycopg2.extras
 from config import DB_CONFIG
 
 
 def get_db_connection():
     try:
-        connection = mysql.connector.connect(**DB_CONFIG)
+        connection = psycopg2.connect(**DB_CONFIG)
         return connection
-    except mysql.connector.Error as err:
+    except psycopg2.Error as err:
         print("Database connection error:", err)
         return None
 
 
 def _col_exists(cursor, table, column):
     cursor.execute("""
-        SELECT COUNT(*) FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME   = %s
-          AND COLUMN_NAME  = %s
+        SELECT COUNT(*) FROM information_schema.columns
+        WHERE table_name = %s AND column_name = %s
     """, (table, column))
-    result = cursor.fetchone()[0]
-    return result > 0
+    return cursor.fetchone()[0] > 0
 
 
 def _col_nullable(cursor, table, column):
     cursor.execute("""
-        SELECT IS_NULLABLE FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME   = %s
-          AND COLUMN_NAME  = %s
+        SELECT is_nullable FROM information_schema.columns
+        WHERE table_name = %s AND column_name = %s
     """, (table, column))
     row = cursor.fetchone()
     return row[0] == 'YES' if row else True
 
 
-def _index_exists(cursor, table, key_name):
+def _index_exists(cursor, index_name):
     cursor.execute("""
-        SELECT COUNT(*) FROM information_schema.STATISTICS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME   = %s
-          AND INDEX_NAME   = %s
-    """, (table, key_name))
-    result = cursor.fetchone()[0]
-    return result > 0
+        SELECT COUNT(*) FROM pg_indexes
+        WHERE indexname = %s
+    """, (index_name,))
+    return cursor.fetchone()[0] > 0
 
 
 def initialize_progress_tables():
@@ -49,65 +42,63 @@ def initialize_progress_tables():
     if not connection:
         return
 
-    # Use buffered=True so ALL result sets are consumed automatically
-    # — this prevents "Unread result found" errors
-    cursor = connection.cursor(buffered=True)
+    connection.autocommit = False
+    cursor = connection.cursor()
 
     try:
         # ── quiz_attempts table ───────────────────────────────────────────
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS quiz_attempts (
-                id           INT AUTO_INCREMENT PRIMARY KEY,
+                id           SERIAL PRIMARY KEY,
                 user_id      INT NOT NULL,
                 subject_id   INT NULL,
                 topic_id     INT NULL,
                 quiz_id      INT NULL,
                 score        FLOAT NOT NULL,
                 total_marks  FLOAT NOT NULL,
-                attempt_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                attempt_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
             )
         """)
 
-        # Add quiz_id if missing
+        # Add quiz_id column if missing
         if not _col_exists(cursor, 'quiz_attempts', 'quiz_id'):
             cursor.execute("ALTER TABLE quiz_attempts ADD COLUMN quiz_id INT NULL")
             print("Migration: added quiz_id to quiz_attempts")
 
-        # Make subject_id nullable
+        # Make subject_id nullable if not already
         if not _col_nullable(cursor, 'quiz_attempts', 'subject_id'):
-            cursor.execute("ALTER TABLE quiz_attempts MODIFY COLUMN subject_id INT NULL")
+            cursor.execute("ALTER TABLE quiz_attempts ALTER COLUMN subject_id DROP NOT NULL")
             print("Migration: made subject_id nullable in quiz_attempts")
 
-        # Make topic_id nullable
+        # Make topic_id nullable if not already
         if not _col_nullable(cursor, 'quiz_attempts', 'topic_id'):
-            cursor.execute("ALTER TABLE quiz_attempts MODIFY COLUMN topic_id INT NULL")
+            cursor.execute("ALTER TABLE quiz_attempts ALTER COLUMN topic_id DROP NOT NULL")
             print("Migration: made topic_id nullable in quiz_attempts")
 
         # ── user_progress table ───────────────────────────────────────────
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS user_progress (
-                id                  INT AUTO_INCREMENT PRIMARY KEY,
+                id                  SERIAL PRIMARY KEY,
                 user_id             INT NOT NULL,
                 subject_id          INT NOT NULL,
                 progress_percentage FLOAT DEFAULT 0,
                 average_score       FLOAT DEFAULT 0,
-                last_updated        DATETIME DEFAULT CURRENT_TIMESTAMP
-                                    ON UPDATE CURRENT_TIMESTAMP,
+                last_updated        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE CASCADE,
                 FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE
             )
         """)
 
-        # Add UNIQUE key if missing (needed for safe upsert)
-        if not _index_exists(cursor, 'user_progress', 'unique_user_subject'):
-            # Clean up any duplicates first
+        # Add unique constraint if missing
+        if not _index_exists(cursor, 'unique_user_subject'):
+            # Remove duplicates first (keep the row with the lowest id)
             cursor.execute("""
-                DELETE p1 FROM user_progress p1
-                INNER JOIN user_progress p2
-                WHERE p1.id > p2.id
-                  AND p1.user_id = p2.user_id
-                  AND p1.subject_id = p2.subject_id
+                DELETE FROM user_progress
+                WHERE id NOT IN (
+                    SELECT MIN(id) FROM user_progress
+                    GROUP BY user_id, subject_id
+                )
             """)
             cursor.execute("""
                 ALTER TABLE user_progress
@@ -118,7 +109,8 @@ def initialize_progress_tables():
         connection.commit()
         print("Progress tracking tables ready.")
 
-    except mysql.connector.Error as err:
+    except psycopg2.Error as err:
+        connection.rollback()
         print("Error initializing tables:", err)
 
     finally:
