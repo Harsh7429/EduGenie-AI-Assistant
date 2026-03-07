@@ -177,7 +177,7 @@ export default function GenerateQuiz() {
                     disabled={!topics.length} style={{ opacity: topics.length ? 1 : 0.4 }}>
                     <option value="">-- Select Topic --</option>
                     {topics.map(t => <option key={t.id} value={t.id}>
-                      {t.unit_name ? `[${t.unit_name}] ${t.name}` : t.name}
+                      {t.name}
                     </option>)}
                   </select>
                 </div>
