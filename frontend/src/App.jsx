@@ -12,6 +12,7 @@ import MyQuizzes from "./pages/MyQuizzes";
 import Analytics from "./pages/Analytics";
 import FYPGuide from "./pages/FYPGuide";
 import ResumeBuilder from "./pages/ResumeBuilder";
+import ChatTutor from "./pages/ChatTutor";
 import Layout from "./components/Layout";
 import { ToastContainer } from "./components/Toast";
 
@@ -33,6 +34,7 @@ function App() {
         <Route path="/analytics"      element={<Layout><Analytics /></Layout>} />
         <Route path="/fyp-guide"      element={<Layout><FYPGuide /></Layout>} />
         <Route path="/resume-builder" element={<Layout><ResumeBuilder /></Layout>} />
+        <Route path="/chat"           element={<Layout><ChatTutor /></Layout>} />
         <Route path="*"               element={<Navigate to="/login" />} />
       </Routes>
     </>

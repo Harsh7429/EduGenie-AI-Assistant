@@ -1178,6 +1178,57 @@ def ai_resume_compile():
 
 
 # -------------------------
+# AI CHAT TUTOR
+# -------------------------
+@app.route("/ai/chat", methods=["POST"])
+@jwt_required()
+def ai_chat():
+    data        = request.json
+    user_message = data.get("message", "").strip()
+    subject     = data.get("subject", "General MCA")
+    history     = data.get("history", [])   # [{role, content}, ...]
+
+    if not user_message:
+        return jsonify({"error": "Message is required"}), 400
+
+    try:
+        system_prompt = (
+            f"You are EduGenie, an expert AI tutor for MCA (Master of Computer Applications) students. "
+            f"The student is currently studying: {subject}. "
+            f"Give clear, concise, exam-focused explanations. Use examples and bullet points where helpful. "
+            f"Keep responses focused and academic. If asked something unrelated to academics, "
+            f"politely redirect to study topics."
+        )
+
+        messages = [{"role": "system", "content": system_prompt}]
+        # Add last 6 messages of history for context
+        for msg in history[-6:]:
+            if msg.get("role") in ("user", "assistant") and msg.get("content"):
+                messages.append({"role": msg["role"], "content": msg["content"]})
+        messages.append({"role": "user", "content": user_message})
+
+        response = requests.post(
+            GROQ_URL,
+            headers=HEADERS,
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": messages,
+                "temperature": 0.7,
+                "max_tokens": 1024,
+            }
+        )
+
+        if response.status_code != 200:
+            return jsonify({"error": "AI service unavailable"}), 500
+
+        reply = response.json()["choices"][0]["message"]["content"]
+        return jsonify({"reply": reply}), 200
+
+    except Exception as e:
+        print("Chat error:", e)
+        return jsonify({"error": "Chat failed"}), 500
+
+# -------------------------
 # INITIALIZE & RUN  ← always last
 # -------------------------
 from db import initialize_progress_tables

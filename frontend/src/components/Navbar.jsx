@@ -8,12 +8,14 @@ const ALL_LINKS = [
   { path: "/generate-quiz",  label: "Quiz",      icon: "🧠" },
   { path: "/my-quizzes",     label: "History",   icon: "📋" },
   { path: "/analytics",      label: "Analytics", icon: "📈" },
+  { path: "/chat",           label: "AI Tutor",  icon: "🤖" },
   { path: "/fyp-guide",      label: "FYP Guide", icon: "🎓" },
   { path: "/resume-builder", label: "Resume",    icon: "📄" },
 ];
 
 const NAV_LINKS = ALL_LINKS.slice(0, 6);
 const MORE_LINKS = [
+  { path: "/chat",           label: "AI Tutor",       icon: "🤖", color: "#22d3ee" },
   { path: "/fyp-guide",      label: "FYP Guide",      icon: "🎓", color: "#34d399" },
   { path: "/resume-builder", label: "Resume Builder", icon: "📄", color: "#f472b6" },
 ];
@@ -29,7 +31,6 @@ export default function Navbar() {
 
   return (
     <>
-      {/* ── Desktop Navbar ── */}
       <nav style={{
         background: "rgba(8,11,20,0.92)", backdropFilter: "blur(20px)",
         borderBottom: "1px solid rgba(99,102,241,0.2)",
@@ -104,7 +105,8 @@ export default function Navbar() {
                       style={{
                         width: "100%", display: "flex", alignItems: "center", gap: 10,
                         padding: "10px 14px", borderRadius: 9, border: "none", cursor: "pointer",
-                        background: "transparent", fontFamily: "'Space Grotesk', sans-serif", textAlign: "left",
+                        background: isActive(link.path) ? `${link.color}15` : "transparent",
+                        fontFamily: "'Space Grotesk', sans-serif", textAlign: "left",
                       }}>
                       <div style={{
                         width: 28, height: 28, borderRadius: 8, flexShrink: 0,
