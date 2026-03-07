@@ -15,7 +15,8 @@ import bcrypt
 import psycopg2.extras
 
 from db import get_db_connection
-from ai import generate_note, generate_quiz, generate_topics
+from ai import generate_note, generate_quiz, generate_topics, GROQ_URL, HEADERS
+import requests
 
 
 app = Flask(__name__)
