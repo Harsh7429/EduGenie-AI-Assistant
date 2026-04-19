@@ -29,108 +29,153 @@ function Login() {
     <div style={{
       minHeight: "100vh",
       display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "24px",
       position: "relative",
       overflow: "hidden",
     }}>
-      {/* Background orbs */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none" }}>
-        <div className="orb1" style={{
-          position: "absolute", top: "15%", left: "10%",
-          width: "500px", height: "500px", borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)",
-        }} />
-        <div className="orb2" style={{
-          position: "absolute", bottom: "10%", right: "10%",
-          width: "400px", height: "400px", borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%)",
-        }} />
-      </div>
-
-      {/* Card */}
-      <div className="glass fade-up" style={{
-        width: "100%",
-        maxWidth: "420px",
-        padding: "48px 40px",
-        position: "relative",
-        zIndex: 1,
+      {/* Left panel — brand */}
+      <div className="auth-left" style={{
+        flex: "0 0 44%", padding: "48px", display: "flex", flexDirection: "column",
+        justifyContent: "space-between",
+        borderRight: "1px solid rgba(255,255,255,0.06)",
       }}>
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "36px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: "52px", height: "52px",
-            borderRadius: "16px",
-            background: "linear-gradient(135deg, #6366f1, #06b6d4)",
+            width: 34, height: 34, borderRadius: 9,
+            background: "linear-gradient(135deg, #f59e0b, #2dd4bf)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "22px",
-            margin: "0 auto 16px",
-            boxShadow: "0 0 30px rgba(99,102,241,0.5)",
-          }}>✦</div>
-
-          <h1 className="title-font" style={{ fontSize: "1.9rem", letterSpacing: "-0.03em", marginBottom: "6px" }}>
-            Welcome back
-          </h1>
-          <p style={{ color: "#475569", fontSize: "0.88rem" }}>
-            Sign in to continue your learning journey
-          </p>
+            fontSize: 14, color: "#000", fontWeight: 900,
+          }}>E</div>
+          <span style={{
+            fontFamily: "var(--font-display)", fontStyle: "italic",
+            fontSize: "1.15rem", color: "var(--ink)",
+          }}>Edu<span style={{ color: "var(--amber)" }}>Genie</span></span>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: "16px" }}>
-            <label style={{ display: "block", fontSize: "0.8rem", color: "#64748b", marginBottom: "7px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Email
-            </label>
-            <input
-              type="email"
-              className="glow-input"
-              placeholder="you@university.edu"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-            />
-          </div>
-
-          <div style={{ marginBottom: "28px" }}>
-            <label style={{ display: "block", fontSize: "0.8rem", color: "#64748b", marginBottom: "7px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Password
-            </label>
-            <input
-              type="password"
-              className="glow-input"
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
-          </div>
-
-          {error && (
+        <div>
+          <div style={{ marginBottom: 24 }}>
             <div style={{
-              padding: "10px 14px",
-              borderRadius: "8px",
-              background: "rgba(239,68,68,0.1)",
-              border: "1px solid rgba(239,68,68,0.3)",
-              color: "#f87171",
-              fontSize: "0.84rem",
-              marginBottom: "20px",
+              display: "inline-flex", alignItems: "center", gap: 7, padding: "4px 12px",
+              borderRadius: 99, background: "var(--amber-dim)", border: "1px solid rgba(245,158,11,0.25)",
+              marginBottom: 20,
             }}>
-              {error}
+              <span className="dot-pulse" />
+              <span style={{ fontSize: "0.72rem", color: "var(--amber)", fontWeight: 600, letterSpacing: "0.06em" }}>
+                AI-POWERED LEARNING
+              </span>
             </div>
-          )}
+            <h1 style={{
+              fontFamily: "var(--font-display)", fontStyle: "italic",
+              fontSize: "clamp(2rem,4vw,3.2rem)", lineHeight: 1.1,
+              color: "var(--ink)", marginBottom: 16,
+            }}>
+              Study smarter,<br />
+              <span style={{ color: "var(--amber)" }}>not harder.</span>
+            </h1>
+            <p style={{ color: "var(--ink-3)", fontSize: "0.95rem", lineHeight: 1.7, maxWidth: 340 }}>
+              Your intelligent MCA companion. Generate notes, ace quizzes, and track your progress — all in one place.
+            </p>
+          </div>
 
-          <button type="submit" className="btn-glow" disabled={loading} style={{ width: "100%", padding: "13px", fontSize: "0.95rem" }}>
-            {loading ? "Signing in..." : "Sign In →"}
-          </button>
-        </form>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {[
+              { icon: "✎", label: "AI-generated topic notes" },
+              { icon: "◉", label: "Adaptive MCQ quizzes" },
+              { icon: "∿", label: "Real-time performance analytics" },
+              { icon: "🤖", label: "24/7 AI chat tutor" },
+            ].map(f => (
+              <div key={f.label} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8, flexShrink: 0,
+                  background: "var(--bg-elevated)", border: "1px solid var(--border-med)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: "0.85rem", color: "var(--amber)",
+                }}>{f.icon}</div>
+                <span style={{ fontSize: "0.88rem", color: "var(--ink-2)" }}>{f.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
-        <p style={{ textAlign: "center", marginTop: "24px", color: "#475569", fontSize: "0.85rem" }}>
-          New to EduGenie?{" "}
-          <Link to="/signup" style={{ color: "#818cf8", fontWeight: "600", textDecoration: "none" }}>
-            Create account
-          </Link>
+        <p style={{ color: "var(--ink-4)", fontSize: "0.75rem" }}>
+          © 2025 EduGenie — Final Year Project
         </p>
       </div>
+
+      {/* Right panel — form */}
+      <div style={{
+        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 32px",
+      }}>
+        <div className="fade-up" style={{ width: "100%", maxWidth: 400 }}>
+          <div style={{ marginBottom: 36 }}>
+            <h2 style={{
+              fontFamily: "var(--font-display)", fontStyle: "italic",
+              fontSize: "1.9rem", color: "var(--ink)", marginBottom: 6,
+            }}>Welcome back</h2>
+            <p style={{ color: "var(--ink-3)", fontSize: "0.88rem" }}>
+              Sign in to continue your learning journey
+            </p>
+          </div>
+
+          <form onSubmit={handleLogin}>
+            <div style={{ marginBottom: 16 }}>
+              <label className="field-label" style={{
+                display: "block", fontSize: "0.72rem", fontWeight: 600,
+                color: "var(--ink-3)", textTransform: "uppercase",
+                letterSpacing: "0.08em", marginBottom: 7,
+              }}>Email address</label>
+              <input
+                type="email"
+                className="glow-input"
+                placeholder="you@university.edu"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div style={{ marginBottom: 28 }}>
+              <label style={{
+                display: "block", fontSize: "0.72rem", fontWeight: 600,
+                color: "var(--ink-3)", textTransform: "uppercase",
+                letterSpacing: "0.08em", marginBottom: 7,
+              }}>Password</label>
+              <input
+                type="password"
+                className="glow-input"
+                placeholder="••••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+              />
+            </div>
+
+            {error && (
+              <div style={{
+                padding: "10px 14px", borderRadius: 8, marginBottom: 20,
+                background: "rgba(251,113,133,0.08)",
+                border: "1px solid rgba(251,113,133,0.2)",
+                color: "var(--rose)", fontSize: "0.84rem",
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button type="submit" className="btn-glow" disabled={loading}
+              style={{ width: "100%", padding: "12px", fontSize: "0.92rem" }}>
+              {loading ? "Signing in…" : "Sign In →"}
+            </button>
+          </form>
+
+          <p style={{ textAlign: "center", marginTop: 24, color: "var(--ink-3)", fontSize: "0.85rem" }}>
+            New to EduGenie?{" "}
+            <Link to="/signup" style={{ color: "var(--amber)", fontWeight: 600, textDecoration: "none" }}>
+              Create account
+            </Link>
+          </p>
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 768px) { .auth-left { display: none; } }
+      `}</style>
     </div>
   );
 }

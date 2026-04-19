@@ -7,10 +7,10 @@ export const toast = {
   info:    (msg) => toastFn?.("info",    msg),
 };
 
-const COLORS = {
-  success: { bg: "rgba(52,211,153,0.12)",  border: "rgba(52,211,153,0.4)",  icon: "✦", color: "#34d399" },
-  error:   { bg: "rgba(248,113,113,0.12)", border: "rgba(248,113,113,0.4)", icon: "✗", color: "#f87171" },
-  info:    { bg: "rgba(99,102,241,0.12)",  border: "rgba(99,102,241,0.4)",  icon: "◎", color: "#818cf8" },
+const CONFIG = {
+  success: { icon: "✓", color: "#34d399", bg: "rgba(52,211,153,0.08)", border: "rgba(52,211,153,0.2)" },
+  error:   { icon: "✕", color: "#fb7185", bg: "rgba(251,113,133,0.08)", border: "rgba(251,113,133,0.2)" },
+  info:    { icon: "◎", color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" },
 };
 
 export function ToastContainer() {
@@ -27,22 +27,31 @@ export function ToastContainer() {
   if (!toasts.length) return null;
 
   return (
-    <div style={{ position:"fixed", bottom:24, right:24, zIndex:9999, display:"flex", flexDirection:"column", gap:10 }}>
+    <div style={{
+      position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+      display: "flex", flexDirection: "column", gap: 8,
+    }}>
       {toasts.map(t => {
-        const c = COLORS[t.type];
+        const c = CONFIG[t.type];
         return (
           <div key={t.id} style={{
-            background: c.bg, border: `1px solid ${c.border}`,
-            borderRadius: 12, padding: "12px 18px",
+            background: c.bg,
+            border: `1px solid ${c.border}`,
+            borderRadius: 10, padding: "11px 16px",
             display: "flex", alignItems: "center", gap: 10,
             backdropFilter: "blur(20px)",
-            boxShadow: `0 8px 32px rgba(0,0,0,0.4)`,
-            animation: "fadeUp 0.3s ease forwards",
-            fontFamily: "'Space Grotesk', sans-serif",
-            maxWidth: 340, minWidth: 240,
+            boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
+            animation: "fadeUp 0.3s cubic-bezier(0.16,1,0.3,1) both",
+            fontFamily: "var(--font-body)",
+            maxWidth: 340, minWidth: 220,
           }}>
-            <span style={{ color: c.color, fontSize: "1rem", fontWeight: 700 }}>{c.icon}</span>
-            <span style={{ color: "#e2e8f0", fontSize: "0.88rem", lineHeight: 1.4 }}>{t.message}</span>
+            <div style={{
+              width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+              background: `${c.color}18`, border: `1px solid ${c.color}33`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "0.78rem", color: c.color, fontWeight: 700,
+            }}>{c.icon}</div>
+            <span style={{ color: "var(--ink-2)", fontSize: "0.86rem", lineHeight: 1.4 }}>{t.message}</span>
           </div>
         );
       })}

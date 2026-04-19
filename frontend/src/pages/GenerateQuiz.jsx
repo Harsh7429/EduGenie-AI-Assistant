@@ -3,15 +3,15 @@ import api, { getSubjects, generateQuiz, generateTopics } from "../services/api"
 import { toast } from "../components/Toast";
 
 const L = ({ children }) => (
-  <label style={{ display:"block", fontSize:"0.75rem", color:"#64748b", marginBottom:7,
-    fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em" }}>{children}</label>
+  <label style={{ display:"block", fontSize:"0.7rem", color:"var(--ink-3)", marginBottom:7,
+    fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em" }}>{children}</label>
 );
 const optLabel = (i) => ["A","B","C","D"][i] ?? i;
 
 const DIFFICULTY_OPTIONS = [
-  { value:"easy",   label:"Easy",   desc:"Basic recall", color:"#34d399", icon:"🟢" },
-  { value:"medium", label:"Medium", desc:"Conceptual",   color:"#fbbf24", icon:"🟡" },
-  { value:"hard",   label:"Hard",   desc:"Advanced",     color:"#f87171", icon:"🔴" },
+  { value:"easy",   label:"Easy",   desc:"Basic recall", color:"var(--emerald)" },
+  { value:"medium", label:"Medium", desc:"Conceptual",   color:"var(--amber)" },
+  { value:"hard",   label:"Hard",   desc:"Advanced",     color:"var(--rose)" },
 ];
 
 export default function GenerateQuiz() {
@@ -38,7 +38,6 @@ export default function GenerateQuiz() {
     if (mode === "structured") getSubjects().then(r => setSubjects(r.data)).catch(() => {});
   }, [mode]);
 
-  // Countdown timer
   useEffect(() => {
     if (!timerActive || timeLeft === null) return;
     if (timeLeft <= 0) { handleAutoSubmit(); return; }
@@ -55,18 +54,12 @@ export default function GenerateQuiz() {
     try {
       setLoading(true); setQuizData(null); setScore(null);
       setAnswers({}); setSubmitted(false); setTimerActive(false); setTimeLeft(null);
-      const r = await generateQuiz(
-        isCustom ? customSubj : selSubject,
-        selTopic,
-        difficulty,
-        numQ
-      );
+      const r = await generateQuiz(isCustom ? customSubj : selSubject, selTopic, difficulty, numQ);
       setQuizData(r.data.quiz);
       setQuizId(r.data.quiz_id);
-      // Start timer: 1.5 min per question
       setTimeLeft(numQ * 90);
       setTimerActive(true);
-      toast.success("Quiz ready! Good luck 🎯");
+      toast.success("Quiz ready! Good luck");
     } catch { toast.error("Failed to generate quiz. Try again."); }
     finally { setLoading(false); }
   };
@@ -92,7 +85,7 @@ export default function GenerateQuiz() {
 
   const handleAutoSubmit = () => {
     if (score === null) calcScore();
-    toast.info("⏰ Time's up! Quiz auto-submitted.");
+    toast.info("Time's up! Quiz auto-submitted.");
   };
 
   const handleSave = async () => {
@@ -100,7 +93,7 @@ export default function GenerateQuiz() {
     try {
       await api.post(`/quizzes/${quizId}/submit`, { score, total_marks: quizData.questions.length });
       setSubmitted(true);
-      toast.success("Progress saved! 🎉");
+      toast.success("Progress saved!");
     } catch (err) {
       toast.error("Save failed: " + (err?.response?.data?.error || err.message));
     }
@@ -109,7 +102,6 @@ export default function GenerateQuiz() {
   const handleRetry = () => {
     setQuizData(null); setScore(null); setAnswers({});
     setSubmitted(false); setTimerActive(false); setTimeLeft(null);
-    // Re-generate same quiz
     handleGenerateQuiz(mode === "custom");
   };
 
@@ -120,53 +112,61 @@ export default function GenerateQuiz() {
   };
 
   const formatTime = (s) => `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
-  const timerColor = timeLeft < 60 ? "#f87171" : timeLeft < 180 ? "#fbbf24" : "#34d399";
+  const timerColor = timeLeft < 60 ? "var(--rose)" : timeLeft < 180 ? "var(--amber)" : "var(--emerald)";
   const answeredCount = Object.keys(answers).length;
-  const totalQ = quizData?.questions?.length || numQ;
   const canSubmit = answeredCount > 0;
+  const diffColor = DIFFICULTY_OPTIONS.find(d => d.value === difficulty)?.color ?? "var(--amber)";
 
   return (
     <div>
       {/* Header */}
-      <div className="fade-up" style={{ marginBottom:32 }}>
-        <h1 className="title-font" style={{ fontSize:"2.4rem", letterSpacing:"-0.03em", marginBottom:8 }}>
-          Generate{" "}
-          <span style={{ background:"linear-gradient(135deg,#a78bfa,#06b6d4)",
-            WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Quiz</span>
+      <div className="fade-up" style={{ marginBottom:28 }}>
+        <h1 style={{
+          fontFamily:"var(--font-display)", fontStyle:"italic",
+          fontSize:"2.4rem", color:"var(--ink)", marginBottom:8,
+        }}>
+          Generate <span style={{ color:"var(--amber)" }}>Quiz</span>
         </h1>
-        <p style={{ color:"#64748b", fontSize:"0.95rem" }}>
+        <p style={{ color:"var(--ink-3)", fontSize:"0.92rem" }}>
           AI-generated MCQs with difficulty levels, timer & progress tracking
         </p>
       </div>
 
       {/* Mode Toggle */}
-      <div className="fade-up" style={{ display:"inline-flex", gap:4, padding:4,
-        background:"rgba(255,255,255,0.04)", borderRadius:12,
-        border:"1px solid rgba(99,102,241,0.15)", marginBottom:24 }}>
-        {[["structured","📚 Structured"],["custom","🧪 Custom"]].map(([m,lbl]) => (
+      <div className="fade-up" style={{
+        display:"inline-flex", gap:3, padding:3,
+        background:"var(--bg-elevated)", borderRadius:10,
+        border:"1px solid var(--border)", marginBottom:24,
+      }}>
+        {[["structured","Structured"],["custom","Custom"]].map(([m,lbl]) => (
           <button key={m} onClick={() => switchMode(m)} style={{
-            padding:"7px 18px", borderRadius:9, border:"none", cursor:"pointer",
-            fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"0.83rem",
-            background: mode===m ? "linear-gradient(135deg,#6366f1,#7c3aed)" : "transparent",
-            color: mode===m ? "#fff" : "#64748b",
-            boxShadow: mode===m ? "0 0 14px rgba(99,102,241,0.4)" : "none",
-            transition:"all 0.2s ease",
+            padding:"7px 18px", borderRadius:8, border:"none", cursor:"pointer",
+            fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.83rem",
+            background: mode===m ? "var(--amber)" : "transparent",
+            color: mode===m ? "#000" : "var(--ink-3)",
+            transition:"all 0.18s",
           }}>{lbl}</button>
         ))}
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"360px 1fr", gap:24, alignItems:"start" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"340px 1fr", gap:20, alignItems:"start" }}>
         {/* Config panel */}
-        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-          {/* Subject/Topic selector */}
-          <div className="glass fade-up" style={{ padding:24 }}>
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+          {/* Subject/Topic */}
+          <div className="glass fade-up" style={{ padding:22 }}>
+            <div style={{ fontSize:"0.7rem", color:"var(--ink-4)", fontWeight:700,
+              textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:16 }}>
+              {mode==="structured" ? "Syllabus" : "Custom Topic"}
+            </div>
+
             {mode === "structured" ? (
               <>
-                <div style={{ marginBottom:16 }}>
+                <div style={{ marginBottom:14 }}>
                   <L>Subject</L>
                   <select className="glow-input" value={selSubject}
                     onChange={e => { setSelSubject(e.target.value); setSelTopic(""); fetchTopics(e.target.value); }}>
-                    <option value="">-- Select Subject --</option>
+                    <option value="">— Select Subject —</option>
                     {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
@@ -174,43 +174,44 @@ export default function GenerateQuiz() {
                   <L>Topic</L>
                   <select className="glow-input" value={selTopic}
                     onChange={e => setSelTopic(e.target.value)}
-                    disabled={!topics.length} style={{ opacity: topics.length ? 1 : 0.4 }}>
-                    <option value="">-- Select Topic --</option>
-                    {topics.map(t => <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>)}
+                    disabled={!topics.length} style={{ opacity:topics.length?1:0.4 }}>
+                    <option value="">— Select Topic —</option>
+                    {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
               </>
             ) : (
               <>
-                <div style={{ marginBottom:14 }}>
-                  <L>Custom Subject</L>
+                <div style={{ marginBottom:12 }}>
+                  <L>Subject Name</L>
                   <input className="glow-input" type="text" placeholder="e.g. Machine Learning"
                     value={customSubj} onChange={e => setCustomSubj(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && handleGenerateTopics()} />
                 </div>
                 <button onClick={handleGenerateTopics} disabled={!customSubj.trim() || topicLoading}
-                  style={{ padding:"7px 16px", borderRadius:8, border:"1px solid rgba(6,182,212,0.35)",
-                    background:"rgba(6,182,212,0.1)", color:"#22d3ee", cursor:"pointer",
-                    fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"0.82rem",
-                    marginBottom:14, opacity: customSubj.trim() ? 1 : 0.4 }}>
-                  {topicLoading ? "Thinking..." : "Suggest Topics"}
+                  style={{
+                    padding:"7px 14px", borderRadius:8, cursor:"pointer",
+                    border:"1px solid var(--border-med)", background:"var(--bg-elevated)",
+                    color:"var(--teal)", fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.82rem",
+                    marginBottom:14, opacity:customSubj.trim()?1:0.4, transition:"all 0.15s",
+                  }}>
+                  {topicLoading ? "Thinking…" : "Suggest Topics →"}
                 </button>
                 {genTopics.length > 0 && (
                   <div>
                     <L>Pick a Topic</L>
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
+                    <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                       {genTopics.map((t,i) => {
                         const name = t.name || t;
                         const sel = selTopic === name;
                         return (
                           <button key={i} onClick={() => setSelTopic(name)} style={{
-                            padding:"5px 12px", borderRadius:99, cursor:"pointer",
-                            fontFamily:"'Space Grotesk',sans-serif", fontSize:"0.78rem", fontWeight:600,
-                            border: sel ? "1px solid #818cf8" : "1px solid rgba(99,102,241,0.2)",
-                            background: sel ? "rgba(99,102,241,0.25)" : "rgba(99,102,241,0.06)",
-                            color: sel ? "#818cf8" : "#64748b", transition:"all 0.2s",
+                            padding:"5px 11px", borderRadius:99, cursor:"pointer",
+                            fontFamily:"var(--font-body)", fontSize:"0.78rem", fontWeight:500,
+                            border: sel ? "1px solid rgba(245,158,11,0.5)" : "1px solid var(--border)",
+                            background: sel ? "var(--amber-dim)" : "var(--bg-elevated)",
+                            color: sel ? "var(--amber)" : "var(--ink-2)",
+                            transition:"all 0.15s",
                           }}>{name}</button>
                         );
                       })}
@@ -222,34 +223,43 @@ export default function GenerateQuiz() {
           </div>
 
           {/* Difficulty */}
-          <div className="glass fade-up" style={{ padding:22 }}>
-            <L>Difficulty</L>
-            <div style={{ display:"flex", gap:8 }}>
+          <div className="glass fade-up" style={{ padding:20 }}>
+            <L>Difficulty Level</L>
+            <div style={{ display:"flex", gap:7 }}>
               {DIFFICULTY_OPTIONS.map(d => (
                 <button key={d.value} onClick={() => setDifficulty(d.value)} style={{
-                  flex:1, padding:"10px 6px", borderRadius:10, cursor:"pointer", textAlign:"center",
-                  border: difficulty===d.value ? `1px solid ${d.color}66` : "1px solid rgba(255,255,255,0.06)",
-                  background: difficulty===d.value ? `${d.color}15` : "rgba(255,255,255,0.02)",
-                  fontFamily:"'Space Grotesk',sans-serif", transition:"all 0.2s",
+                  flex:1, padding:"10px 4px", borderRadius:9, cursor:"pointer", textAlign:"center",
+                  border: difficulty===d.value ? `1px solid ${d.color}` : "1px solid var(--border)",
+                  background: difficulty===d.value ? `color-mix(in srgb, ${d.color} 12%, transparent)` : "var(--bg-elevated)",
+                  fontFamily:"var(--font-body)", transition:"all 0.18s",
                 }}>
-                  <div style={{ fontSize:"1.1rem", marginBottom:4 }}>{d.icon}</div>
-                  <div style={{ fontSize:"0.75rem", fontWeight:700, color: difficulty===d.value ? d.color : "#64748b" }}>
-                    {d.label}
-                  </div>
-                  <div style={{ fontSize:"0.65rem", color:"#334155", marginTop:2 }}>{d.desc}</div>
+                  <div style={{
+                    width:7, height:7, borderRadius:"50%", background:d.color,
+                    margin:"0 auto 6px", opacity: difficulty===d.value ? 1 : 0.3,
+                  }}/>
+                  <div style={{ fontSize:"0.75rem", fontWeight:700,
+                    color: difficulty===d.value ? d.color : "var(--ink-3)" }}>{d.label}</div>
+                  <div style={{ fontSize:"0.62rem", color:"var(--ink-4)", marginTop:2 }}>{d.desc}</div>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Question count */}
-          <div className="glass fade-up" style={{ padding:22 }}>
-            <L>Number of Questions: <span style={{ color:"#818cf8" }}>{numQ}</span></L>
+          <div className="glass fade-up" style={{ padding:20 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", marginBottom:10 }}>
+              <L>Questions</L>
+              <span style={{
+                fontFamily:"var(--font-display)", fontStyle:"italic",
+                color:"var(--amber)", fontSize:"1.1rem",
+              }}>{numQ}</span>
+            </div>
             <input type="range" min={3} max={15} step={1} value={numQ}
               onChange={e => setNumQ(Number(e.target.value))}
-              style={{ width:"100%", accentColor:"#6366f1", cursor:"pointer", margin:"8px 0" }} />
-            <div style={{ display:"flex", justifyContent:"space-between", fontSize:"0.7rem", color:"#334155" }}>
-              <span>3</span><span>15</span>
+              style={{ width:"100%", accentColor:"#f59e0b", cursor:"pointer" }} />
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:"0.68rem",
+              color:"var(--ink-4)", marginTop:4 }}>
+              <span>3 min</span><span>15 max</span>
             </div>
           </div>
 
@@ -257,8 +267,8 @@ export default function GenerateQuiz() {
           <button className="btn-glow" disabled={loading ||
             (mode==="structured" ? (!selSubject||!selTopic) : (!customSubj.trim()||!selTopic))}
             onClick={() => handleGenerateQuiz(mode === "custom")}
-            style={{ padding:13, fontSize:"0.95rem", width:"100%" }}>
-            {loading ? "⏳ Generating..." : `✦ Generate ${numQ} Questions`}
+            style={{ padding:13, fontSize:"0.92rem", width:"100%" }}>
+            {loading ? "Generating…" : `Generate ${numQ} Questions`}
           </button>
         </div>
 
@@ -267,55 +277,62 @@ export default function GenerateQuiz() {
           {loading && (
             <div className="glass fade-up" style={{ padding:60, textAlign:"center" }}>
               <div className="loader" style={{ marginBottom:16 }} />
-              <p style={{ color:"#64748b" }}>AI is crafting your {numQ} {difficulty} questions...</p>
+              <p style={{ color:"var(--ink-3)", fontSize:"0.9rem" }}>
+                Crafting your {numQ} {difficulty} questions…
+              </p>
             </div>
           )}
 
           {quizData?.questions && !loading && (
-            <div className="glass fade-up" style={{ padding:28 }}>
+            <div className="glass fade-up" style={{ padding:26 }}>
               {/* Quiz header */}
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
-                marginBottom:24, paddingBottom:16,
-                borderBottom:"1px solid rgba(99,102,241,0.15)" }}>
+              <div style={{
+                display:"flex", justifyContent:"space-between", alignItems:"center",
+                marginBottom:20, paddingBottom:16, borderBottom:"1px solid var(--border)",
+              }}>
                 <div>
-                  <h3 className="title-font" style={{ fontSize:"1.1rem", marginBottom:4 }}>
-                    {quizData.questions.length} Questions ·{" "}
-                    <span style={{ color: DIFFICULTY_OPTIONS.find(d=>d.value===difficulty)?.color ?? "#818cf8", fontSize:"0.9rem" }}>
-                      {difficulty.charAt(0).toUpperCase()+difficulty.slice(1)}
+                  <div style={{ fontWeight:600, color:"var(--ink)", fontSize:"0.95rem", marginBottom:3 }}>
+                    {quizData.questions.length} Questions
+                    <span style={{ color:diffColor, marginLeft:8, fontSize:"0.82rem" }}>
+                      · {difficulty.charAt(0).toUpperCase()+difficulty.slice(1)}
                     </span>
-                  </h3>
-                  <p style={{ color:"#475569", fontSize:"0.78rem" }}>
+                  </div>
+                  <p style={{ color:"var(--ink-3)", fontSize:"0.78rem" }}>
                     {answeredCount}/{quizData.questions.length} answered
-                    {score === null && ` · ${quizData.questions.length - answeredCount} remaining`}
+                    {score===null && ` · ${quizData.questions.length-answeredCount} remaining`}
                   </p>
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                  {/* Timer */}
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                   {timerActive && timeLeft !== null && (
-                    <div style={{ padding:"6px 14px", borderRadius:99,
-                      background:`${timerColor}15`, border:`1px solid ${timerColor}44`,
-                      color:timerColor, fontWeight:700, fontSize:"0.9rem",
-                      fontFamily:"'Syne',sans-serif" }}>
-                      ⏱ {formatTime(timeLeft)}
-                    </div>
+                    <div style={{
+                      padding:"5px 12px", borderRadius:99,
+                      background:`color-mix(in srgb, ${timerColor} 10%, transparent)`,
+                      border:`1px solid color-mix(in srgb, ${timerColor} 30%, transparent)`,
+                      color:timerColor, fontWeight:700, fontSize:"0.88rem",
+                      fontFamily:"var(--font-mono)",
+                    }}>{formatTime(timeLeft)}</div>
                   )}
                   {score !== null && (
-                    <div style={{ padding:"6px 16px", borderRadius:99,
-                      background:"rgba(99,102,241,0.15)", border:"1px solid rgba(99,102,241,0.3)",
-                      color:"#818cf8", fontWeight:700, fontSize:"0.9rem" }}>
-                      🎯 {score}/{quizData.questions.length}
+                    <div style={{
+                      padding:"5px 14px", borderRadius:99,
+                      background:`color-mix(in srgb, ${score/quizData.questions.length>=0.8?"#34d399":score/quizData.questions.length>=0.5?"#f59e0b":"#fb7185"} 10%, transparent)`,
+                      color:score/quizData.questions.length>=0.8?"var(--emerald)":score/quizData.questions.length>=0.5?"var(--amber)":"var(--rose)",
+                      fontWeight:700, fontSize:"0.88rem",
+                    }}>
+                      {score}/{quizData.questions.length} correct
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Progress bar */}
-              {score === null && (
-                <div style={{ height:4, background:"rgba(255,255,255,0.06)", borderRadius:99,
-                  marginBottom:24, overflow:"hidden" }}>
-                  <div style={{ height:"100%", borderRadius:99, background:"#6366f1",
+              {score===null && (
+                <div style={{ height:3, background:"var(--bg-overlay)", borderRadius:99, marginBottom:22, overflow:"hidden" }}>
+                  <div style={{
+                    height:"100%", borderRadius:99, background:"var(--amber)",
                     width:`${(answeredCount/quizData.questions.length)*100}%`,
-                    transition:"width 0.3s ease", boxShadow:"0 0 8px rgba(99,102,241,0.6)" }} />
+                    transition:"width 0.3s",
+                  }} />
                 </div>
               )}
 
@@ -325,48 +342,48 @@ export default function GenerateQuiz() {
                 const isRight = answered && answers[qi] === q.correct_answer;
                 return (
                   <div key={qi} style={{
-                    marginBottom:20, padding:18, borderRadius:12,
-                    background: answered ? (isRight ? "rgba(52,211,153,0.05)" : "rgba(248,113,113,0.05)") : "rgba(255,255,255,0.02)",
-                    border: answered ? (isRight ? "1px solid rgba(52,211,153,0.25)" : "1px solid rgba(248,113,113,0.2)") : "1px solid rgba(255,255,255,0.05)",
-                    transition:"all 0.3s",
+                    marginBottom:18, padding:18, borderRadius:12,
+                    background: answered ? (isRight?"rgba(52,211,153,0.04)":"rgba(251,113,133,0.04)") : "var(--bg-elevated)",
+                    border: answered ? (isRight?"1px solid rgba(52,211,153,0.2)":"1px solid rgba(251,113,133,0.15)") : "1px solid var(--border)",
+                    transition:"all 0.25s",
                   }}>
-                    <p style={{ fontWeight:600, color:"#e2e8f0", marginBottom:12,
-                      fontSize:"0.92rem", lineHeight:1.55 }}>
-                      <span style={{ color:"#6366f1", marginRight:8, fontWeight:700 }}>Q{qi+1}.</span>
+                    <p style={{ fontWeight:600, color:"var(--ink)", marginBottom:12, fontSize:"0.9rem", lineHeight:1.55 }}>
+                      <span style={{ color:"var(--ink-3)", marginRight:8, fontFamily:"var(--font-mono)", fontSize:"0.78rem" }}>
+                        Q{qi+1}
+                      </span>
                       {q.question}
-                      {answered && <span style={{ marginLeft:10, fontSize:"0.8rem" }}>
-                        {isRight ? "✅" : "❌"}
-                      </span>}
+                      {answered && (
+                        <span style={{ marginLeft:8, color:isRight?"var(--emerald)":"var(--rose)", fontSize:"0.85rem" }}>
+                          {isRight ? "✓" : "✗"}
+                        </span>
+                      )}
                     </p>
-                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:7 }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
                       {q.options.map((opt, oi) => {
                         const isSel = answers[qi] === oi;
                         const isCorr = q.correct_answer === oi;
-                        let bg="rgba(255,255,255,0.03)", bdr="1px solid rgba(255,255,255,0.07)", clr="#94a3b8";
+                        let bg="transparent", bdr="var(--border)", clr="var(--ink-2)";
                         if (answered) {
-                          if (isCorr) { bg="rgba(52,211,153,0.13)"; bdr="1px solid rgba(52,211,153,0.4)"; clr="#34d399"; }
-                          else if (isSel) { bg="rgba(248,113,113,0.1)"; bdr="1px solid rgba(248,113,113,0.35)"; clr="#f87171"; }
-                        } else if (isSel) {
-                          bg="rgba(99,102,241,0.18)"; bdr="1px solid rgba(99,102,241,0.5)"; clr="#818cf8";
-                        }
+                          if (isCorr)       { bg="rgba(52,211,153,0.08)";   bdr="rgba(52,211,153,0.35)";  clr="var(--emerald)"; }
+                          else if (isSel)   { bg="rgba(251,113,133,0.07)"; bdr="rgba(251,113,133,0.3)";  clr="var(--rose)"; }
+                        } else if (isSel)   { bg="var(--amber-dim)";         bdr="rgba(245,158,11,0.45)"; clr="var(--amber)"; }
                         return (
                           <label key={oi} style={{
                             display:"flex", alignItems:"center", gap:9,
-                            padding:"9px 13px", borderRadius:9,
-                            background:bg, border:bdr, color:clr,
-                            cursor: answered ? "default" : "pointer",
-                            fontSize:"0.85rem",
-                            fontWeight: (isSel || (answered&&isCorr)) ? 600 : 400,
-                            transition:"all 0.2s ease",
+                            padding:"9px 13px", borderRadius:8,
+                            background:bg, border:`1px solid ${bdr}`, color:clr,
+                            cursor: answered?"default":"pointer", fontSize:"0.85rem",
+                            fontWeight: (isSel||(answered&&isCorr)) ? 600 : 400,
+                            transition:"all 0.18s",
                           }}>
                             <input type="radio" name={`q${qi}`} value={oi}
                               checked={isSel} disabled={answered}
                               onChange={() => setAnswers({...answers,[qi]:oi})}
-                              style={{ accentColor:"#6366f1", flexShrink:0 }} />
-                            <span style={{ color:"#334155", fontWeight:700, minWidth:18 }}>{optLabel(oi)}.</span>
+                              style={{ accentColor:"#f59e0b", flexShrink:0 }} />
+                            <span style={{ color:"var(--ink-4)", fontFamily:"var(--font-mono)", fontSize:"0.75rem", minWidth:16 }}>
+                              {optLabel(oi)}
+                            </span>
                             <span style={{ flex:1 }}>{opt}</span>
-                            {answered && isCorr && <span>✓</span>}
-                            {answered && isSel && !isCorr && <span>✗</span>}
                           </label>
                         );
                       })}
@@ -376,58 +393,63 @@ export default function GenerateQuiz() {
               })}
 
               {/* Submit / Result */}
-              {score === null ? (
+              {score===null ? (
                 <button className="btn-glow" onClick={calcScore} disabled={!canSubmit}
-                  style={{ width:"100%", padding:13, marginTop:8, opacity: canSubmit ? 1 : 0.5 }}>
+                  style={{ width:"100%", padding:12, marginTop:8, opacity:canSubmit?1:0.4 }}>
                   Submit Quiz ({answeredCount}/{quizData.questions.length} answered)
                 </button>
               ) : (
-                <div style={{ marginTop:20, padding:24, borderRadius:14, textAlign:"center",
-                  background:"rgba(99,102,241,0.07)", border:"1px solid rgba(99,102,241,0.18)" }}>
-                  {/* Score ring */}
-                  <div style={{ position:"relative", width:100, height:100, margin:"0 auto 16px" }}>
-                    <svg viewBox="0 0 36 36" style={{ width:100, height:100, transform:"rotate(-90deg)" }}>
-                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3"/>
+                <div style={{
+                  marginTop:20, padding:24, borderRadius:14, textAlign:"center",
+                  background:"var(--bg-elevated)", border:"1px solid var(--border-med)",
+                }}>
+                  <div style={{ position:"relative", width:96, height:96, margin:"0 auto 16px" }}>
+                    <svg viewBox="0 0 36 36" style={{ width:96, height:96, transform:"rotate(-90deg)" }}>
+                      <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--bg-overlay)" strokeWidth="2.5"/>
                       <circle cx="18" cy="18" r="15.9" fill="none"
-                        stroke={score/quizData.questions.length >= 0.8 ? "#34d399" : score/quizData.questions.length >= 0.5 ? "#fbbf24" : "#f87171"}
-                        strokeWidth="3" strokeLinecap="round"
+                        stroke={score/quizData.questions.length>=0.8?"#34d399":score/quizData.questions.length>=0.5?"#f59e0b":"#fb7185"}
+                        strokeWidth="2.5" strokeLinecap="round"
                         strokeDasharray={`${(score/quizData.questions.length)*100} 100`}
-                        style={{ transition:"stroke-dasharray 1s ease" }}/>
+                        style={{ transition:"stroke-dasharray 1s cubic-bezier(0.16,1,0.3,1)" }}/>
                     </svg>
-                    <div className="title-font" style={{
-                      position:"absolute", inset:0, display:"flex",
-                      alignItems:"center", justifyContent:"center",
-                      fontSize:"1.4rem",
-                      color: score/quizData.questions.length >= 0.8 ? "#34d399" : score/quizData.questions.length >= 0.5 ? "#fbbf24" : "#f87171",
+                    <div style={{
+                      position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center",
+                      fontFamily:"var(--font-display)", fontStyle:"italic",
+                      fontSize:"1.3rem",
+                      color:score/quizData.questions.length>=0.8?"var(--emerald)":score/quizData.questions.length>=0.5?"var(--amber)":"var(--rose)",
                     }}>
                       {Math.round(score/quizData.questions.length*100)}%
                     </div>
                   </div>
 
-                  <p style={{ color:"#64748b", marginBottom:4, fontSize:"0.85rem" }}>
+                  <p style={{ color:"var(--ink-2)", marginBottom:4, fontSize:"0.9rem", fontWeight:600 }}>
                     {score} correct out of {quizData.questions.length}
                   </p>
-                  <p style={{ color:"#475569", fontSize:"0.78rem", marginBottom:20 }}>
-                    {score/quizData.questions.length >= 0.8 ? "🏆 Excellent! You've mastered this topic." :
-                     score/quizData.questions.length >= 0.5 ? "📈 Good effort! Keep practicing." :
-                     "💪 Keep going! Review the topic and retry."}
+                  <p style={{ color:"var(--ink-3)", fontSize:"0.8rem", marginBottom:20 }}>
+                    {score/quizData.questions.length>=0.8 ? "Excellent! You've mastered this topic." :
+                     score/quizData.questions.length>=0.5 ? "Good effort! Keep practicing." :
+                     "Keep going! Review the topic and try again."}
                   </p>
 
                   <div style={{ display:"flex", gap:10, justifyContent:"center", flexWrap:"wrap" }}>
                     {!submitted ? (
                       <button className="btn-glow" onClick={handleSave} style={{ padding:"9px 22px" }}>
-                        💾 Save to Progress
+                        Save to Progress
                       </button>
                     ) : (
-                      <div style={{ color:"#34d399", fontWeight:700, padding:"9px 0" }}>✦ Progress saved!</div>
+                      <div style={{ color:"var(--emerald)", fontWeight:700, padding:"9px 0", fontSize:"0.9rem" }}>
+                        ✓ Progress saved!
+                      </div>
                     )}
                     <button onClick={handleRetry} style={{
-                      padding:"9px 22px", borderRadius:10, cursor:"pointer",
-                      border:"1px solid rgba(6,182,212,0.35)", background:"rgba(6,182,212,0.1)",
-                      color:"#22d3ee", fontFamily:"'Space Grotesk',sans-serif",
-                      fontWeight:600, fontSize:"0.88rem",
-                    }}>
-                      🔄 Retry Quiz
+                      padding:"9px 22px", borderRadius:9, cursor:"pointer",
+                      border:"1px solid var(--border-med)", background:"var(--bg-elevated)",
+                      color:"var(--ink-2)", fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.88rem",
+                      transition:"all 0.15s",
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.color="var(--ink)"}
+                      onMouseLeave={e => e.currentTarget.style.color="var(--ink-2)"}>
+                      Retry Quiz
                     </button>
                   </div>
                 </div>
@@ -435,11 +457,10 @@ export default function GenerateQuiz() {
             </div>
           )}
 
-          {/* Empty state */}
           {!quizData && !loading && (
-            <div className="glass" style={{ padding:64, textAlign:"center", opacity:0.6 }}>
-              <div style={{ fontSize:"3rem", marginBottom:16 }}>🧠</div>
-              <p style={{ color:"#475569" }}>Configure your quiz and click Generate</p>
+            <div className="glass" style={{ padding:60, textAlign:"center" }}>
+              <div style={{ fontSize:"2.5rem", marginBottom:16, opacity:0.3 }}>◉</div>
+              <p style={{ color:"var(--ink-3)", fontSize:"0.9rem" }}>Configure your quiz and click Generate</p>
             </div>
           )}
         </div>

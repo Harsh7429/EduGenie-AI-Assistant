@@ -2,94 +2,75 @@ import { useEffect, useState } from "react";
 import api from "../services/api";
 
 const scoreColor = (score) => {
-  if (score >= 80) return "#34d399";
-  if (score >= 50) return "#fbbf24";
-  return "#f87171";
+  if (score >= 80) return "var(--emerald)";
+  if (score >= 50) return "var(--amber)";
+  return "var(--rose)";
 };
 
 const statusLabel = (score) => {
-  if (score >= 80) return { text: "Mastered", icon: "✦" };
-  if (score >= 50) return { text: "In Progress", icon: "◈" };
-  return { text: "Needs Work", icon: "◎" };
+  if (score >= 80) return { text:"Mastered",    dot:"var(--emerald)" };
+  if (score >= 50) return { text:"In Progress", dot:"var(--amber)" };
+  return              { text:"Needs Work",   dot:"var(--rose)" };
 };
 
 function SubjectCard({ subject, index }) {
-  const pct   = Math.round(subject.progress_percentage);
-  const score = subject.average_score;
-  const color = scoreColor(score);
+  const pct    = Math.round(subject.progress_percentage);
+  const score  = subject.average_score;
+  const color  = scoreColor(score);
   const status = statusLabel(score);
 
   return (
     <div
       className="glass fade-up"
-      style={{
-        padding: "24px",
-        animationDelay: `${0.05 + index * 0.04}s`,
-        transition: "all 0.3s ease",
-        cursor: "default",
-      }}
+      style={{ padding:"20px", animationDelay:`${0.04+index*0.04}s`, transition:"all 0.2s", cursor:"default" }}
       onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.borderColor = `${color}55`;
-        e.currentTarget.style.boxShadow = `0 12px 32px ${color}22`;
+        e.currentTarget.style.transform="translateY(-3px)";
+        e.currentTarget.style.borderColor=`${color === "var(--emerald)" ? "rgba(52,211,153,0.3)" : color === "var(--amber)" ? "rgba(245,158,11,0.3)" : "rgba(251,113,133,0.3)"}`;
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.borderColor = "rgba(99,102,241,0.2)";
-        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.transform="translateY(0)";
+        e.currentTarget.style.borderColor="var(--border)";
       }}
     >
-      {/* Subject name */}
-      <h2 style={{ fontSize: "1rem", fontWeight: "700", color: "#f1f5f9", marginBottom: "16px", lineHeight: 1.3 }}>
-        {subject.subject_name}
-      </h2>
+      {/* Top accent */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:14 }}>
+        <h2 style={{ fontSize:"0.88rem", fontWeight:600, color:"var(--ink)", lineHeight:1.35, flex:1, marginRight:10 }}>
+          {subject.subject_name}
+        </h2>
+        <div style={{
+          display:"flex", alignItems:"center", gap:5,
+          padding:"3px 9px", borderRadius:99, flexShrink:0,
+          background: color==="var(--emerald)"?"var(--emerald-dim)":color==="var(--amber)"?"var(--amber-dim)":"var(--rose-dim)",
+          border: `1px solid ${color==="var(--emerald)"?"rgba(52,211,153,0.25)":color==="var(--amber)"?"rgba(245,158,11,0.25)":"rgba(251,113,133,0.25)"}`,
+        }}>
+          <div style={{ width:5, height:5, borderRadius:"50%", background:status.dot }}/>
+          <span style={{ fontSize:"0.68rem", fontWeight:700, color, letterSpacing:"0.04em" }}>{status.text}</span>
+        </div>
+      </div>
 
       {/* Progress bar */}
-      <div style={{ marginBottom: "14px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
-          <span style={{ fontSize: "0.75rem", color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+      <div style={{ marginBottom:14 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+          <span style={{ fontSize:"0.68rem", color:"var(--ink-4)", textTransform:"uppercase", letterSpacing:"0.07em", fontWeight:600 }}>
             Coverage
           </span>
-          <span style={{ fontSize: "0.8rem", fontWeight: "700", color: "#94a3b8" }}>{pct}%</span>
+          <span style={{ fontSize:"0.78rem", fontWeight:700, color:"var(--ink-2)", fontFamily:"var(--font-mono)" }}>{pct}%</span>
         </div>
-        <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "99px", height: "6px", overflow: "hidden" }}>
+        <div style={{ background:"var(--bg-overlay)", borderRadius:"99px", height:"3px", overflow:"hidden" }}>
           <div style={{
-            height: "100%",
-            width: `${pct}%`,
-            borderRadius: "99px",
-            background: pct > 0
-              ? `linear-gradient(90deg, ${color}88, ${color})`
-              : "transparent",
-            transition: "width 1s ease",
-            boxShadow: pct > 0 ? `0 0 8px ${color}66` : "none",
+            height:"100%", width:`${pct}%`, borderRadius:"99px",
+            background: color,
+            transition:"width 1s cubic-bezier(0.16,1,0.3,1)",
           }} />
         </div>
       </div>
 
-      {/* Stats row */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <div style={{ fontSize: "0.72rem", color: "#475569", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            Avg Score
-          </div>
-          <div style={{ fontSize: "1.4rem", fontWeight: "800", fontFamily: "'Syne', sans-serif", color: "#f1f5f9" }}>
-            {score.toFixed(1)}
-          </div>
-        </div>
-
-        <div style={{
-          display: "flex", alignItems: "center", gap: "6px",
-          padding: "5px 12px",
-          borderRadius: "99px",
-          background: `${color}18`,
-          border: `1px solid ${color}44`,
-          fontSize: "0.75rem",
-          fontWeight: "700",
-          color: color,
-        }}>
-          <span>{status.icon}</span>
-          <span>{status.text}</span>
-        </div>
+      {/* Score */}
+      <div style={{
+        fontFamily:"var(--font-display)", fontStyle:"italic",
+        fontSize:"1.6rem", color,
+      }}>
+        {score.toFixed(1)}<span style={{ fontSize:"0.9rem", color:"var(--ink-3)", marginLeft:2 }}>avg</span>
       </div>
     </div>
   );
@@ -97,7 +78,7 @@ function SubjectCard({ subject, index }) {
 
 function Subjects() {
   const [subjects, setSubjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     api.get("/progress/subjects")
@@ -112,39 +93,33 @@ function Subjects() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="fade-up" style={{ marginBottom: "36px" }}>
-        <h1 className="title-font" style={{ fontSize: "2.4rem", letterSpacing: "-0.03em", marginBottom: "8px" }}>
-          My <span style={{ background: "linear-gradient(135deg, #6366f1, #06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Subjects</span>
+      <div className="fade-up" style={{ marginBottom:28 }}>
+        <h1 style={{
+          fontFamily:"var(--font-display)", fontStyle:"italic",
+          fontSize:"2.4rem", color:"var(--ink)", marginBottom:8,
+        }}>
+          My <span style={{ color:"var(--teal)" }}>Subjects</span>
         </h1>
-        <p style={{ color: "#64748b", fontSize: "0.95rem" }}>Track your progress across the full MCA syllabus</p>
+        <p style={{ color:"var(--ink-3)", fontSize:"0.92rem" }}>Track your progress across the full MCA syllabus</p>
       </div>
 
-      {/* Summary pills */}
       {!loading && subjects.length > 0 && (
-        <div className="fade-up" style={{ display: "flex", gap: "12px", marginBottom: "32px", flexWrap: "wrap" }}>
+        <div className="fade-up" style={{ display:"flex", gap:10, marginBottom:28, flexWrap:"wrap" }}>
           {[
-            { label: "Mastered",    count: mastered,   color: "#34d399" },
-            { label: "In Progress", count: inProgress, color: "#fbbf24" },
-            { label: "Needs Work",  count: needsWork,  color: "#f87171" },
+            { label:"Mastered",    count:mastered,   color:"var(--emerald)", dimColor:"rgba(52,211,153,0.12)",  border:"rgba(52,211,153,0.25)" },
+            { label:"In Progress", count:inProgress, color:"var(--amber)",   dimColor:"var(--amber-dim)",       border:"rgba(245,158,11,0.25)" },
+            { label:"Needs Work",  count:needsWork,  color:"var(--rose)",    dimColor:"var(--rose-dim)",        border:"rgba(251,113,133,0.25)" },
           ].map(p => (
             <div key={p.label} style={{
-              padding: "6px 16px",
-              borderRadius: "99px",
-              background: `${p.color}12`,
-              border: `1px solid ${p.color}33`,
-              fontSize: "0.82rem",
-              fontWeight: "600",
-              color: p.color,
-              display: "flex", gap: "8px", alignItems: "center",
+              padding:"5px 14px", borderRadius:99,
+              background:p.dimColor, border:`1px solid ${p.border}`,
+              fontSize:"0.8rem", fontWeight:600, color:p.color,
+              display:"flex", gap:8, alignItems:"center",
             }}>
               <span style={{
-                background: p.color,
-                color: "#0a0e1a",
-                borderRadius: "99px",
-                padding: "1px 8px",
-                fontSize: "0.75rem",
-                fontWeight: "800",
+                background:p.color, color:"#09090b",
+                borderRadius:99, padding:"0px 7px",
+                fontSize:"0.72rem", fontWeight:800,
               }}>{p.count}</span>
               {p.label}
             </div>
@@ -152,24 +127,16 @@ function Subjects() {
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
-        <div style={{ padding: "80px 0", textAlign: "center" }}>
+        <div style={{ padding:"80px 0", textAlign:"center" }}>
           <div className="loader" />
-          <p style={{ color: "#475569", marginTop: "16px", fontSize: "0.9rem" }}>Loading subjects...</p>
+          <p style={{ color:"var(--ink-3)", marginTop:16, fontSize:"0.9rem" }}>Loading subjects…</p>
         </div>
       )}
 
-      {/* Grid */}
       {!loading && (
-        <div style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-          gap: "16px",
-        }}>
-          {subjects.map((s, i) => (
-            <SubjectCard key={s.subject_id} subject={s} index={i} />
-          ))}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))", gap:14 }}>
+          {subjects.map((s,i) => <SubjectCard key={s.subject_id} subject={s} index={i} />)}
         </div>
       )}
     </div>

@@ -3,7 +3,7 @@ import { generateResume, improveResume, compileResume } from "../services/api";
 import { toast } from "../components/Toast";
 
 const L = ({ children }) => (
-  <label style={{ display:"block", fontSize:"0.72rem", color:"#64748b",
+  <label style={{ display:"block", fontSize:"0.72rem", color:"var(--ink-3)",
     marginBottom:6, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.07em" }}>
     {children}
   </label>
@@ -69,9 +69,9 @@ function LatexResult({ latex, onRecompile, compiling }) {
           {[["preview","👁 Preview"],["code","</> LaTeX Code"]].map(([t,lbl]) => (
             <button key={t} onClick={() => setTab(t)} style={{
               padding:"6px 14px", borderRadius:8, border:"none", cursor:"pointer",
-              fontFamily:"'Space Grotesk',sans-serif", fontSize:"0.8rem", fontWeight:600,
+              fontFamily:"var(--font-body)", fontSize:"0.8rem", fontWeight:600,
               background: tab===t ? "rgba(99,102,241,0.2)" : "transparent",
-              color: tab===t ? "#818cf8" : "#64748b",
+              color: tab===t ? "var(--violet)" : "var(--ink-3)",
             }}>{lbl}</button>
           ))}
         </div>
@@ -79,25 +79,25 @@ function LatexResult({ latex, onRecompile, compiling }) {
           <button onClick={handleDownloadTex} style={{
             padding:"6px 12px", borderRadius:8, cursor:"pointer",
             border:"1px solid rgba(6,182,212,0.3)", background:"rgba(6,182,212,0.08)",
-            color:"#22d3ee", fontFamily:"'Space Grotesk',sans-serif", fontSize:"0.78rem", fontWeight:600,
+            color:"var(--teal)", fontFamily:"var(--font-body)", fontSize:"0.78rem", fontWeight:600,
           }}>↓ .tex</button>
           <button onClick={handleCopy} style={{
             padding:"6px 12px", borderRadius:8, cursor:"pointer",
             border:"1px solid rgba(99,102,241,0.3)", background:"rgba(99,102,241,0.08)",
-            color:"#818cf8", fontFamily:"'Space Grotesk',sans-serif", fontSize:"0.78rem", fontWeight:600,
+            color:"var(--violet)", fontFamily:"var(--font-body)", fontSize:"0.78rem", fontWeight:600,
           }}>{copied ? "✓ Copied" : "Copy"}</button>
           <button onClick={handleOverleaf} style={{
             padding:"6px 14px", borderRadius:8, cursor:"pointer",
             background:"linear-gradient(135deg,#4f9e4c,#45a049)",
             border:"none", color:"#fff",
-            fontFamily:"'Space Grotesk',sans-serif", fontSize:"0.78rem", fontWeight:700,
+            fontFamily:"var(--font-body)", fontSize:"0.78rem", fontWeight:700,
             boxShadow:"0 0 12px rgba(79,158,76,0.4)",
           }}>🍃 Open in Overleaf</button>
           {onRecompile && (
             <button onClick={onRecompile} disabled={compiling} style={{
               padding:"6px 14px", borderRadius:8, cursor:"pointer",
               background:"linear-gradient(135deg,#6366f1,#7c3aed)", border:"none", color:"#fff",
-              fontFamily:"'Space Grotesk',sans-serif", fontSize:"0.78rem", fontWeight:700,
+              fontFamily:"var(--font-body)", fontSize:"0.78rem", fontWeight:700,
               opacity: compiling ? 0.6 : 1,
             }}>{compiling ? "Compiling..." : "⚡ Compile PDF"}</button>
           )}
@@ -107,7 +107,7 @@ function LatexResult({ latex, onRecompile, compiling }) {
       {/* ATS tips banner */}
       <div style={{ padding:"10px 22px",
         background:"rgba(52,211,153,0.06)", borderBottom:"1px solid rgba(52,211,153,0.12)",
-        display:"flex", gap:16, fontSize:"0.75rem", color:"#34d399", flexWrap:"wrap" }}>
+        display:"flex", gap:16, fontSize:"0.75rem", color:"var(--emerald)", flexWrap:"wrap" }}>
         <span>✦ ATS-Optimized</span>
         <span>✦ Single Page</span>
         <span>✦ No Tables/Graphics</span>
@@ -120,17 +120,17 @@ function LatexResult({ latex, onRecompile, compiling }) {
         {tab === "code" ? (
           <pre style={{
             fontFamily:"'Courier New',monospace", fontSize:"0.75rem", lineHeight:1.6,
-            color:"#94a3b8", whiteSpace:"pre-wrap", wordBreak:"break-word",
+            color:"var(--ink-2)", whiteSpace:"pre-wrap", wordBreak:"break-word",
             background:"rgba(0,0,0,0.2)", padding:16, borderRadius:10,
             maxHeight:520, overflowY:"auto",
           }}>{latex}</pre>
         ) : (
           <div style={{
             fontFamily:"Georgia, serif", fontSize:"0.82rem", lineHeight:1.7,
-            color:"#cbd5e1", maxHeight:600, overflowY:"auto",
+            color:"var(--ink-2)", maxHeight:600, overflowY:"auto",
             padding:16, background:"rgba(0,0,0,0.15)", borderRadius:10,
           }}>
-            <p style={{ color:"#64748b", fontSize:"0.75rem", marginBottom:16, textAlign:"center" }}>
+            <p style={{ color:"var(--ink-3)", fontSize:"0.75rem", marginBottom:16, textAlign:"center" }}>
               LaTeX preview (approximate). Use "Open in Overleaf" or "Compile PDF" for exact rendering.
             </p>
             <div style={{ whiteSpace:"pre-wrap" }}>{
@@ -160,14 +160,14 @@ function BulletList({ values, onChange, placeholder }) {
             style={{ flex:1 }} />
           {values.length > 1 && (
             <button onClick={() => onChange(values.filter((_,j)=>j!==i))}
-              style={{ background:"transparent", border:"none", color:"#f87171", cursor:"pointer", fontSize:"1rem" }}>✕</button>
+              style={{ background:"transparent", border:"none", color:"var(--rose)", cursor:"pointer", fontSize:"1rem" }}>✕</button>
           )}
         </div>
       ))}
       <button onClick={() => onChange([...values,""])}
         style={{ background:"transparent", border:"1px dashed rgba(99,102,241,0.3)",
           borderRadius:7, color:"#6366f1", cursor:"pointer", padding:"4px 12px",
-          fontSize:"0.75rem", fontFamily:"'Space Grotesk',sans-serif", marginTop:4 }}>
+          fontSize:"0.75rem", fontFamily:"var(--font-body)", marginTop:4 }}>
         + Add bullet
       </button>
     </div>
@@ -297,7 +297,7 @@ export default function ResumeBuilder() {
             <textarea className="glow-input" rows={3} value={form.summary}
               placeholder="Brief summary highlighting your skills and goals for this role..."
               onChange={e=>upd("summary",e.target.value)}
-              style={{ resize:"vertical", fontFamily:"'Space Grotesk',sans-serif", lineHeight:1.6 }}/>
+              style={{ resize:"vertical", fontFamily:"var(--font-body)", lineHeight:1.6 }}/>
           </div>
         </div>
       );
@@ -309,7 +309,7 @@ export default function ResumeBuilder() {
               {form.skills.length > 1 && (
                 <button onClick={() => upd("skills",form.skills.filter((_,j)=>j!==i))}
                   style={{ position:"absolute", top:10, right:10, background:"transparent",
-                    border:"none", color:"#f87171", cursor:"pointer", fontSize:"1rem" }}>✕</button>
+                    border:"none", color:"var(--rose)", cursor:"pointer", fontSize:"1rem" }}>✕</button>
               )}
               <div style={{ marginBottom:10 }}>
                 <L>Skill Category</L>
@@ -326,7 +326,7 @@ export default function ResumeBuilder() {
           <button onClick={() => upd("skills",[...form.skills,{category:"",items:""}])}
             style={{ width:"100%", padding:"10px", borderRadius:9, cursor:"pointer",
               border:"1px dashed rgba(99,102,241,0.3)", background:"transparent",
-              color:"#6366f1", fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"0.85rem" }}>
+              color:"#6366f1", fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.85rem" }}>
             + Add Skill Category
           </button>
         </div>
@@ -339,7 +339,7 @@ export default function ResumeBuilder() {
               {form.experience.length > 1 && (
                 <button onClick={() => upd("experience",form.experience.filter((_,j)=>j!==i))}
                   style={{ position:"absolute", top:10, right:10, background:"transparent",
-                    border:"none", color:"#f87171", cursor:"pointer", fontSize:"1rem" }}>✕</button>
+                    border:"none", color:"var(--rose)", cursor:"pointer", fontSize:"1rem" }}>✕</button>
               )}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                 <div><L>Job Title</L><GInput placeholder="Data Analyst Intern" value={exp.title}
@@ -366,10 +366,10 @@ export default function ResumeBuilder() {
           <button onClick={() => upd("experience",[...form.experience,{title:"",duration:"",company:"",tools:"",bullets:[""]}])}
             style={{ width:"100%", padding:"10px", borderRadius:9, cursor:"pointer",
               border:"1px dashed rgba(99,102,241,0.3)", background:"transparent",
-              color:"#6366f1", fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"0.85rem" }}>
+              color:"#6366f1", fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.85rem" }}>
             + Add Experience
           </button>
-          <p style={{ color:"#334155", fontSize:"0.75rem", marginTop:8 }}>
+          <p style={{ color:"var(--ink-4)", fontSize:"0.75rem", marginTop:8 }}>
             No experience? That's fine — add internships, freelance work, or college projects here.
           </p>
         </div>
@@ -382,7 +382,7 @@ export default function ResumeBuilder() {
               {form.projects.length > 1 && (
                 <button onClick={() => upd("projects",form.projects.filter((_,j)=>j!==i))}
                   style={{ position:"absolute", top:10, right:10, background:"transparent",
-                    border:"none", color:"#f87171", cursor:"pointer", fontSize:"1rem" }}>✕</button>
+                    border:"none", color:"var(--rose)", cursor:"pointer", fontSize:"1rem" }}>✕</button>
               )}
               <div style={{ marginBottom:10 }}>
                 <L>Project Title</L>
@@ -403,7 +403,7 @@ export default function ResumeBuilder() {
           <button onClick={() => upd("projects",[...form.projects,{title:"",tech:"",bullets:[""]}])}
             style={{ width:"100%", padding:"10px", borderRadius:9, cursor:"pointer",
               border:"1px dashed rgba(99,102,241,0.3)", background:"transparent",
-              color:"#6366f1", fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"0.85rem" }}>
+              color:"#6366f1", fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.85rem" }}>
             + Add Project
           </button>
         </div>
@@ -411,7 +411,7 @@ export default function ResumeBuilder() {
 
       case 4: return ( // Education + Certs
         <div>
-          <h3 style={{ fontWeight:700, color:"#818cf8", marginBottom:14, fontSize:"0.9rem" }}>Education</h3>
+          <h3 style={{ fontWeight:700, color:"var(--violet)", marginBottom:14, fontSize:"0.9rem" }}>Education</h3>
           {form.education.map((ed,i) => (
             <div key={i} className="glass" style={{ padding:16, marginBottom:12 }}>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
@@ -432,7 +432,7 @@ export default function ResumeBuilder() {
             </div>
           ))}
 
-          <h3 style={{ fontWeight:700, color:"#818cf8", margin:"20px 0 12px", fontSize:"0.9rem" }}>
+          <h3 style={{ fontWeight:700, color:"var(--violet)", margin:"20px 0 12px", fontSize:"0.9rem" }}>
             Certifications & Awards
           </h3>
           {form.certifications.map((c,i) => (
@@ -442,14 +442,14 @@ export default function ResumeBuilder() {
                 style={{ flex:1 }}/>
               {form.certifications.length>1 && (
                 <button onClick={()=>upd("certifications",form.certifications.filter((_,j)=>j!==i))}
-                  style={{ background:"transparent", border:"none", color:"#f87171", cursor:"pointer" }}>✕</button>
+                  style={{ background:"transparent", border:"none", color:"var(--rose)", cursor:"pointer" }}>✕</button>
               )}
             </div>
           ))}
           <button onClick={()=>upd("certifications",[...form.certifications,""])}
             style={{ padding:"8px 14px", borderRadius:8, cursor:"pointer",
               border:"1px dashed rgba(99,102,241,0.3)", background:"transparent",
-              color:"#6366f1", fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"0.8rem" }}>
+              color:"#6366f1", fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.8rem" }}>
             + Add Certificate
           </button>
         </div>
@@ -469,12 +469,12 @@ export default function ResumeBuilder() {
           <span style={{ width:6, height:6, borderRadius:"50%", background:"#f472b6", display:"inline-block" }}/>
           ATS-FRIENDLY RESUME
         </div>
-        <h1 className="title-font" style={{ fontSize:"2.4rem", letterSpacing:"-0.03em", marginBottom:8 }}>
+        <h1 style={{ fontFamily:"var(--font-display)", fontStyle:"italic" }} style={{ fontSize:"2.4rem", letterSpacing:"-0.03em", marginBottom:8 }}>
           Resume{" "}
-          <span style={{ background:"linear-gradient(135deg,#f472b6,#818cf8)",
+          <span style={{ background:"linear-gradient(135deg,#f472b6,var(--violet))",
             WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent" }}>Builder</span>
         </h1>
-        <p style={{ color:"#64748b", fontSize:"0.95rem" }}>
+        <p style={{ color:"var(--ink-3)", fontSize:"0.95rem" }}>
           Generate ATS-optimized resumes in LaTeX — same professional template, tailored to your target role
         </p>
       </div>
@@ -486,9 +486,9 @@ export default function ResumeBuilder() {
         {[["build","📝 Build from Scratch"],["improve","⬆️ Improve Existing"]].map(([m,lbl]) => (
           <button key={m} onClick={() => { setMode(m); setLatex(""); setPdfUrl(null); }} style={{
             padding:"7px 18px", borderRadius:9, border:"none", cursor:"pointer",
-            fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"0.83rem",
+            fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.83rem",
             background: mode===m ? "linear-gradient(135deg,#db2777,#9333ea)" : "transparent",
-            color: mode===m ? "#fff" : "#64748b",
+            color: mode===m ? "#fff" : "var(--ink-3)",
             boxShadow: mode===m ? "0 0 14px rgba(219,39,119,0.4)" : "none",
             transition:"all 0.2s ease",
           }}>{lbl}</button>
@@ -506,9 +506,9 @@ export default function ResumeBuilder() {
                 {STEPS.map((s,i) => (
                   <button key={i} onClick={() => setStep(i)} style={{
                     flex:1, padding:"8px 4px", border:"none", cursor:"pointer",
-                    fontFamily:"'Space Grotesk',sans-serif", fontSize:"0.68rem", fontWeight:600,
+                    fontFamily:"var(--font-body)", fontSize:"0.68rem", fontWeight:600,
                     background: step===i ? "rgba(244,114,182,0.2)" : "transparent",
-                    color: step===i ? "#f472b6" : step>i ? "#34d399" : "#475569",
+                    color: step===i ? "#f472b6" : step>i ? "var(--emerald)" : "var(--ink-3)",
                     borderRight: i<STEPS.length-1 ? "1px solid rgba(244,114,182,0.15)" : "none",
                     transition:"all 0.2s",
                   }}>
@@ -528,21 +528,21 @@ export default function ResumeBuilder() {
                   <button onClick={() => setStep(s=>s-1)} style={{
                     flex:1, padding:"10px", borderRadius:9, cursor:"pointer",
                     border:"1px solid rgba(255,255,255,0.1)", background:"transparent",
-                    color:"#64748b", fontFamily:"'Space Grotesk',sans-serif", fontWeight:600, fontSize:"0.85rem",
+                    color:"var(--ink-3)", fontFamily:"var(--font-body)", fontWeight:600, fontSize:"0.85rem",
                   }}>← Back</button>
                 )}
                 {step < STEPS.length-1 ? (
                   <button onClick={() => setStep(s=>s+1)} style={{
                     flex:1, padding:"10px", borderRadius:9, cursor:"pointer",
                     background:"linear-gradient(135deg,#db2777,#9333ea)", border:"none", color:"#fff",
-                    fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:"0.85rem",
+                    fontFamily:"var(--font-body)", fontWeight:700, fontSize:"0.85rem",
                     boxShadow:"0 0 14px rgba(219,39,119,0.35)",
                   }}>Next →</button>
                 ) : (
                   <button onClick={handleGenerate} disabled={loading} style={{
                     flex:1, padding:"11px", borderRadius:9, cursor:"pointer",
                     background:"linear-gradient(135deg,#db2777,#9333ea)", border:"none", color:"#fff",
-                    fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:"0.9rem",
+                    fontFamily:"var(--font-body)", fontWeight:700, fontSize:"0.9rem",
                     boxShadow:"0 0 20px rgba(219,39,119,0.5)", opacity: loading ? 0.7 : 1,
                   }}>{loading ? "⏳ Generating..." : "✨ Generate Resume"}</button>
                 )}
@@ -568,14 +568,14 @@ export default function ResumeBuilder() {
                 <textarea className="glow-input" rows={12}
                   placeholder="Paste your existing resume text here. The AI will rewrite bullet points, optimize summary, and restructure skills for your target role..."
                   value={uploadText} onChange={e=>setUploadText(e.target.value)}
-                  style={{ resize:"vertical", fontFamily:"'Space Grotesk',sans-serif",
+                  style={{ resize:"vertical", fontFamily:"var(--font-body)",
                     lineHeight:1.6, fontSize:"0.82rem" }}/>
               </div>
 
               <div style={{ marginBottom:16, padding:14, borderRadius:10,
                 background:"rgba(251,191,36,0.06)", border:"1px solid rgba(251,191,36,0.15)" }}>
-                <p style={{ fontSize:"0.78rem", color:"#64748b", lineHeight:1.6 }}>
-                  💡 <strong style={{ color:"#fbbf24" }}>Tip:</strong> Open your PDF resume, select all text (Ctrl+A), copy (Ctrl+C), and paste here. 
+                <p style={{ fontSize:"0.78rem", color:"var(--ink-3)", lineHeight:1.6 }}>
+                  💡 <strong style={{ color:"var(--amber)" }}>Tip:</strong> Open your PDF resume, select all text (Ctrl+A), copy (Ctrl+C), and paste here. 
                   The AI will keep all your real data and only improve the wording.
                 </p>
               </div>
@@ -583,7 +583,7 @@ export default function ResumeBuilder() {
               <button onClick={handleImprove} disabled={loading || !uploadText.trim() || !improveRole}
                 style={{ width:"100%", padding:13, borderRadius:9, cursor:"pointer",
                   background:"linear-gradient(135deg,#db2777,#9333ea)", border:"none", color:"#fff",
-                  fontFamily:"'Space Grotesk',sans-serif", fontWeight:700, fontSize:"0.9rem",
+                  fontFamily:"var(--font-body)", fontWeight:700, fontSize:"0.9rem",
                   boxShadow:"0 0 20px rgba(219,39,119,0.5)",
                   opacity: (!uploadText.trim() || !improveRole || loading) ? 0.6 : 1 }}>
                 {loading ? "⏳ Improving Resume..." : "✨ Improve Resume"}
@@ -598,8 +598,8 @@ export default function ResumeBuilder() {
             <div className="glass fade-up" style={{ padding:80, textAlign:"center" }}>
               <div className="loader" style={{ marginBottom:16,
                 borderTopColor:"#f472b6", borderColor:"rgba(244,114,182,0.2)" }} />
-              <p style={{ color:"#64748b" }}>AI is crafting your ATS-optimized resume...</p>
-              <p style={{ color:"#334155", fontSize:"0.8rem", marginTop:8 }}>
+              <p style={{ color:"var(--ink-3)" }}>AI is crafting your ATS-optimized resume...</p>
+              <p style={{ color:"var(--ink-4)", fontSize:"0.8rem", marginTop:8 }}>
                 Optimizing keywords, action verbs & quantified results for your target role
               </p>
             </div>
@@ -614,10 +614,10 @@ export default function ResumeBuilder() {
           {!latex && !loading && (
             <div className="glass" style={{ padding:80, textAlign:"center", opacity:0.5 }}>
               <div style={{ fontSize:"3.5rem", marginBottom:16 }}>📄</div>
-              <p style={{ color:"#475569", fontSize:"0.95rem" }}>
+              <p style={{ color:"var(--ink-3)", fontSize:"0.95rem" }}>
                 Fill in your details and generate your professional resume
               </p>
-              <p style={{ color:"#334155", fontSize:"0.8rem", marginTop:8 }}>
+              <p style={{ color:"var(--ink-4)", fontSize:"0.8rem", marginTop:8 }}>
                 LaTeX code will appear here • Copy to Overleaf or compile to PDF
               </p>
             </div>
