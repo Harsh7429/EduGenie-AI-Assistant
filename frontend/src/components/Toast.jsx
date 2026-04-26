@@ -7,51 +7,71 @@ export const toast = {
   info:    (msg) => toastFn?.("info",    msg),
 };
 
+const ICONS = {
+  success: (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  error: (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+    </svg>
+  ),
+  info: (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.3"/>
+      <path d="M6 5.5V8.5M6 4h.01" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  ),
+};
+
 const CONFIG = {
-  success: { icon: "✓", color: "#34d399", bg: "rgba(52,211,153,0.08)", border: "rgba(52,211,153,0.2)" },
-  error:   { icon: "✕", color: "#fb7185", bg: "rgba(251,113,133,0.08)", border: "rgba(251,113,133,0.2)" },
-  info:    { icon: "◎", color: "#f59e0b", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.2)" },
+  success: { color: "var(--jade)",     bg: "var(--jade-dim)",  border: "var(--jade-border)"  },
+  error:   { color: "var(--ruby)",     bg: "var(--ruby-dim)",  border: "var(--ruby-border)"  },
+  info:    { color: "var(--gold)",     bg: "var(--gold-dim)",  border: "var(--gold-border)"  },
 };
 
 export function ToastContainer() {
   const [toasts, setToasts] = useState([]);
 
-  const addToast = useCallback((type, message) => {
+  const add = useCallback((type, message) => {
     const id = Date.now();
-    setToasts(prev => [...prev, { id, type, message }]);
-    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500);
+    setToasts(p => [...p, { id, type, message }]);
+    setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 3800);
   }, []);
 
-  useEffect(() => { toastFn = addToast; return () => { toastFn = null; }; }, [addToast]);
+  useEffect(() => { toastFn = add; return () => { toastFn = null; }; }, [add]);
 
   if (!toasts.length) return null;
 
   return (
     <div style={{
-      position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+      position: "fixed", bottom: 20, right: 20, zIndex: 9999,
       display: "flex", flexDirection: "column", gap: 8,
     }}>
       {toasts.map(t => {
         const c = CONFIG[t.type];
         return (
           <div key={t.id} style={{
-            background: c.bg,
-            border: `1px solid ${c.border}`,
-            borderRadius: 10, padding: "11px 16px",
-            display: "flex", alignItems: "center", gap: 10,
+            display: "flex", alignItems: "center", gap: 11,
+            padding: "11px 16px", borderRadius: 10,
+            background: "var(--bg-3)", border: `1px solid ${c.border}`,
             backdropFilter: "blur(20px)",
-            boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
-            animation: "fadeUp 0.3s cubic-bezier(0.16,1,0.3,1) both",
-            fontFamily: "var(--font-body)",
-            maxWidth: 340, minWidth: 220,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.55)",
+            animation: "fadeUp 0.3s var(--ease-out) both",
+            fontFamily: "var(--font-body)", maxWidth: 340, minWidth: 200,
           }}>
             <div style={{
-              width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-              background: `${c.color}18`, border: `1px solid ${c.color}33`,
+              width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+              background: c.bg, color: c.color,
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "0.78rem", color: c.color, fontWeight: 700,
-            }}>{c.icon}</div>
-            <span style={{ color: "var(--ink-2)", fontSize: "0.86rem", lineHeight: 1.4 }}>{t.message}</span>
+            }}>
+              {ICONS[t.type]}
+            </div>
+            <span style={{ color: "var(--ink-2)", fontSize: "0.85rem", lineHeight: 1.45 }}>
+              {t.message}
+            </span>
           </div>
         );
       })}

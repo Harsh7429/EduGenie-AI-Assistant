@@ -4,8 +4,8 @@ import api from "../services/api";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const [form, setForm]     = useState({ name: "", email: "", password: "", confirmPassword: "" });
-  const [error, setError]   = useState("");
+  const [form,    setForm]    = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [error,   setError]   = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
@@ -14,6 +14,7 @@ export default function Signup() {
     e.preventDefault();
     setError("");
     if (!form.name || !form.email || !form.password) { setError("All fields are required."); return; }
+    if (form.password.length < 6) { setError("Password must be at least 6 characters."); return; }
     if (form.password !== form.confirmPassword) { setError("Passwords do not match."); return; }
     try {
       setLoading(true);
@@ -26,60 +27,62 @@ export default function Signup() {
     }
   };
 
-  const fields = [
-    { name: "name",            type: "text",     label: "Full Name",        placeholder: "Your full name" },
-    { name: "email",           type: "email",    label: "Email Address",    placeholder: "you@university.edu" },
-    { name: "password",        type: "password", label: "Password",         placeholder: "••••••••" },
-    { name: "confirmPassword", type: "password", label: "Confirm Password", placeholder: "••••••••" },
-  ];
-
   return (
     <div style={{
-      minHeight: "100vh",
-      display: "flex", alignItems: "center", justifyContent: "center",
+      minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
       padding: "48px 24px",
     }}>
-      <div style={{ width: "100%", maxWidth: 460 }}>
-        {/* Header */}
-        <div className="fade-up" style={{ textAlign: "center", marginBottom: 40 }}>
-          <div onClick={() => navigate("/login")} style={{
-            display: "inline-flex", alignItems: "center", gap: 10,
-            cursor: "pointer", marginBottom: 28,
-          }}>
+      <div style={{ width: "100%", maxWidth: 420 }}>
+
+        {/* Logo */}
+        <div className="fade-up" style={{ textAlign: "center", marginBottom: 36 }}>
+          <Link to="/login" style={{ display: "inline-flex", alignItems: "center", gap: 9, textDecoration: "none", marginBottom: 28 }}>
             <div style={{
-              width: 34, height: 34, borderRadius: 9,
-              background: "linear-gradient(135deg, #f59e0b, #2dd4bf)",
+              width: 30, height: 30, borderRadius: 7, background: "var(--gold)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, color: "#000", fontWeight: 900,
-            }}>E</div>
+            }}>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M2 2h4.5v4.5H2V2z" fill="#07070d" opacity="0.9"/>
+                <path d="M6.5 6.5H11V11H6.5V6.5z" fill="#07070d" opacity="0.9"/>
+                <circle cx="9" cy="3.5" r="2" stroke="#07070d" strokeWidth="1.3" opacity="0.9"/>
+                <circle cx="3.5" cy="9.5" r="2" stroke="#07070d" strokeWidth="1.3" opacity="0.9"/>
+              </svg>
+            </div>
             <span style={{
               fontFamily: "var(--font-display)", fontStyle: "italic",
-              fontSize: "1.15rem", color: "var(--ink)",
-            }}>Edu<span style={{ color: "var(--amber)" }}>Genie</span></span>
-          </div>
+              fontSize: "1.1rem", color: "var(--ink)",
+            }}>Edu<span style={{ color: "var(--gold)" }}>Genie</span></span>
+          </Link>
 
           <h1 style={{
             fontFamily: "var(--font-display)", fontStyle: "italic",
-            fontSize: "2rem", color: "var(--ink)", marginBottom: 8,
-          }}>Create your account</h1>
-          <p style={{ color: "var(--ink-3)", fontSize: "0.88rem" }}>
-            Join thousands of MCA students learning smarter
+            fontSize: "2rem", color: "var(--ink)", marginBottom: 6, fontWeight: 400,
+          }}>
+            Create your account.
+          </h1>
+          <p style={{ color: "var(--ink-3)", fontSize: "0.875rem" }}>
+            Join and start studying smarter from day one.
           </p>
         </div>
 
-        {/* Form card */}
-        <div className="fade-up glass" style={{ padding: "32px" }}>
+        {/* Card */}
+        <div className="fade-up glass" style={{ padding: "32px 28px" }}>
           <form onSubmit={handleSubmit}>
-            {fields.map(f => (
-              <div key={f.name} style={{ marginBottom: 16 }}>
+
+            {[
+              { name: "name",            type: "text",     label: "Full Name",        placeholder: "Your full name" },
+              { name: "email",           type: "email",    label: "Email Address",    placeholder: "you@university.edu" },
+              { name: "password",        type: "password", label: "Password",         placeholder: "Min. 6 characters" },
+              { name: "confirmPassword", type: "password", label: "Confirm Password", placeholder: "••••••••" },
+            ].map((f, idx) => (
+              <div key={f.name} style={{ marginBottom: idx === 3 ? 24 : 16 }}>
                 <label style={{
-                  display: "block", fontSize: "0.72rem", fontWeight: 600,
-                  color: "var(--ink-3)", textTransform: "uppercase",
-                  letterSpacing: "0.08em", marginBottom: 7,
+                  display: "block", fontSize: "0.7rem", fontWeight: 600,
+                  color: "var(--ink-4)", textTransform: "uppercase",
+                  letterSpacing: "0.1em", marginBottom: 8,
                 }}>{f.label}</label>
                 <input
-                  type={f.type}
-                  name={f.name}
+                  type={f.type} name={f.name}
                   className="glow-input"
                   placeholder={f.placeholder}
                   value={form[f.name]}
@@ -90,23 +93,26 @@ export default function Signup() {
 
             {error && (
               <div style={{
-                padding: "10px 14px", borderRadius: 8, marginBottom: 16,
-                background: "rgba(251,113,133,0.08)",
-                border: "1px solid rgba(251,113,133,0.2)",
-                color: "var(--rose)", fontSize: "0.84rem",
+                padding: "10px 14px", borderRadius: 8, marginBottom: 20,
+                background: "var(--ruby-dim)", border: "1px solid var(--ruby-border)",
+                color: "var(--ruby)", fontSize: "0.84rem",
               }}>{error}</div>
             )}
 
             <button type="submit" className="btn-glow" disabled={loading}
-              style={{ width: "100%", padding: "12px", fontSize: "0.92rem", marginTop: 8 }}>
+              style={{ width: "100%", padding: 13, fontSize: "0.9rem" }}>
               {loading ? "Creating account…" : "Create Account →"}
             </button>
           </form>
         </div>
 
-        <p className="fade-up" style={{ textAlign: "center", marginTop: 20, color: "var(--ink-3)", fontSize: "0.85rem" }}>
+        {/* Sign in link */}
+        <p className="fade-up" style={{
+          textAlign: "center", marginTop: 20,
+          color: "var(--ink-3)", fontSize: "0.855rem",
+        }}>
           Already have an account?{" "}
-          <Link to="/login" style={{ color: "var(--amber)", fontWeight: 600, textDecoration: "none" }}>
+          <Link to="/login" style={{ color: "var(--gold)", fontWeight: 600, textDecoration: "none" }}>
             Sign in
           </Link>
         </p>
