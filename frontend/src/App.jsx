@@ -16,26 +16,47 @@ import ChatTutor from "./pages/ChatTutor";
 import Layout from "./components/Layout";
 import { ToastContainer } from "./components/Toast";
 
+/**
+ * ProtectedRoute — redirects unauthenticated users to /login.
+ * Without this, any user can visit /dashboard, /notes, etc. directly
+ * via the address bar. The UI would render but every API call would
+ * silently fail with a 401.
+ */
+function ProtectedRoute({ children }) {
+  const token = localStorage.getItem("token");
+  if (!token) return <Navigate to="/login" replace />;
+  return children;
+}
+
+function P({ page }) {
+  return <ProtectedRoute><Layout>{page}</Layout></ProtectedRoute>;
+}
+
 function App() {
   return (
     <>
       <ToastContainer />
       <Routes>
-        <Route path="/login"   element={<Login />} />
-        <Route path="/signup"  element={<Signup />} />
-        <Route path="/dashboard"      element={<Layout><Dashboard /></Layout>} />
-        <Route path="/subjects"       element={<Layout><Subjects /></Layout>} />
-        <Route path="/subjects/:subjectId" element={<Layout><Units /></Layout>} />
-        <Route path="/units/:unitId"  element={<Layout><Topics /></Layout>} />
-        <Route path="/notes"          element={<Layout><Notes /></Layout>} />
-        <Route path="/generate-note"  element={<Layout><GenerateNote /></Layout>} />
-        <Route path="/generate-quiz"  element={<Layout><GenerateQuiz /></Layout>} />
-        <Route path="/my-quizzes"     element={<Layout><MyQuizzes /></Layout>} />
-        <Route path="/analytics"      element={<Layout><Analytics /></Layout>} />
-        <Route path="/fyp-guide"      element={<Layout><FYPGuide /></Layout>} />
-        <Route path="/resume-builder" element={<Layout><ResumeBuilder /></Layout>} />
-        <Route path="/chat"           element={<Layout><ChatTutor /></Layout>} />
-        <Route path="*"               element={<Navigate to="/login" />} />
+        {/* Public routes */}
+        <Route path="/login"  element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        {/* Protected routes */}
+        <Route path="/dashboard"      element={<P page={<Dashboard />} />} />
+        <Route path="/subjects"       element={<P page={<Subjects />} />} />
+        <Route path="/subjects/:subjectId" element={<P page={<Units />} />} />
+        <Route path="/units/:unitId"  element={<P page={<Topics />} />} />
+        <Route path="/notes"          element={<P page={<Notes />} />} />
+        <Route path="/generate-note"  element={<P page={<GenerateNote />} />} />
+        <Route path="/generate-quiz"  element={<P page={<GenerateQuiz />} />} />
+        <Route path="/my-quizzes"     element={<P page={<MyQuizzes />} />} />
+        <Route path="/analytics"      element={<P page={<Analytics />} />} />
+        <Route path="/fyp-guide"      element={<P page={<FYPGuide />} />} />
+        <Route path="/resume-builder" element={<P page={<ResumeBuilder />} />} />
+        <Route path="/chat"           element={<P page={<ChatTutor />} />} />
+
+        {/* Fallback */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
   );
