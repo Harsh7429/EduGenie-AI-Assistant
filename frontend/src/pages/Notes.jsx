@@ -1,40 +1,50 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { toast } from "../components/Toast";
+import PageHeader from "../components/PageHeader";
+import { SkeletonList } from "../components/SkeletonCard";
 
 export default function Notes() {
-  const [notes, setNotes]       = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const navigate = useNavigate();
+  const [notes,    setNotes]    = useState([]);
+  const [loading,  setLoading]  = useState(true);
   const [expanded, setExpanded] = useState(null);
-  const [search, setSearch]     = useState("");
+  const [search,   setSearch]   = useState("");
 
   useEffect(() => {
-    api.get("/notes").then(r => setNotes(r.data)).catch(() => {}).finally(() => setLoading(false));
+    api.get("/notes")
+      .then(r => setNotes(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this note?")) return;
-    try {
-      await api.delete(`/notes/${id}`);
-      setNotes(prev => prev.filter(n => n.id !== id));
-      toast.success("Note deleted.");
-    } catch { toast.error("Failed to delete note."); }
+    try { await api.delete(`/notes/${id}`); setNotes(p => p.filter(n => n.id !== id)); toast.success("Note deleted."); }
+    catch { toast.error("Failed to delete note."); }
   };
 
-  const handleDownload = (note) => {
-    const blob = new Blob([note.content], { type:"text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${note.subject}_${note.topic}_note.txt`.replace(/\s+/g,"_");
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Downloaded!");
-  };
+  const handleCopy = (content) => { navigator.clipboard.writeText(content); toast.success("Copied to clipboard!"); };
 
-  const handleCopy = (content) => {
-    navigator.clipboard.writeText(content);
-    toast.success("Copied to clipboard!");
+  const handlePrintPDF = (note) => {
+    const win = window.open("", "_blank");
+    win.document.write(`
+      <!DOCTYPE html><html><head>
+      <title>${note.subject} — ${note.topic}</title>
+      <style>
+        body{font-family:Georgia,serif;font-size:12pt;line-height:1.9;color:#111;margin:2cm;background:#fff;}
+        .print-title{font-size:20pt;border-bottom:1px solid #ccc;padding-bottom:6pt;margin-bottom:4pt;}
+        .print-meta{font-size:9pt;color:#666;margin-bottom:18pt;}
+        p{margin:0 0 10pt;}
+      </style></head><body>
+      <h1 class="print-title">${note.topic}</h1>
+      <p class="print-meta">${note.subject} &nbsp;·&nbsp; ${new Date(note.created_at).toLocaleDateString()}</p>
+      <div>${note.content.replace(/\n/g,"<br/>")}</div>
+      </body></html>`);
+    win.document.close();
+    win.print();
+    toast.success("PDF dialog opened!");
   };
 
   const filtered = notes.filter(n => {
@@ -45,123 +55,91 @@ export default function Notes() {
 
   return (
     <div>
-      <div className="fade-up" style={{ marginBottom:28 }}>
-        <h1 style={{
-          fontFamily:"var(--font-display)", fontStyle:"italic",
-          fontSize:"2.4rem", color:"var(--ink)", marginBottom:8,
-        }}>
-          My <span style={{ color:"var(--amber)" }}>Notes</span>
-        </h1>
-        <p style={{ color:"var(--ink-3)", fontSize:"0.92rem" }}>
-          {notes.length} note{notes.length!==1?"s":""} generated
-        </p>
-      </div>
+      <PageHeader
+        title="My" accent="Notes" accentColor="var(--gold)"
+        sub={`${notes.length} note${notes.length !== 1 ? "s" : ""} generated`}
+        actions={
+          <button className="btn-glow" onClick={() => navigate("/generate-note")} style={{ padding:"8px 16px", fontSize:".82rem" }}>
+            + New Note
+          </button>
+        }
+      />
 
       {notes.length > 0 && (
-        <div className="fade-up" style={{ marginBottom:20 }}>
+        <div className="fade-up" style={{ marginBottom:18 }}>
           <input className="glow-input" type="text" placeholder="Search notes by subject or topic…"
             value={search} onChange={e => setSearch(e.target.value)}
-            style={{ maxWidth:380 }} />
+            style={{ maxWidth:380 }}/>
         </div>
       )}
 
-      {loading && (
-        <div style={{ padding:"80px 0", textAlign:"center" }}>
-          <div className="loader" style={{ marginBottom:14 }} />
-          <p style={{ color:"var(--ink-3)", fontSize:"0.9rem" }}>Loading notes…</p>
-        </div>
-      )}
+      {loading && <SkeletonList count={4}/>}
 
       {!loading && filtered.length === 0 && (
-        <div className="glass" style={{ padding:64, textAlign:"center" }}>
-          <div style={{ fontSize:"2.5rem", marginBottom:14, opacity:0.25 }}>✎</div>
-          <p style={{ color:"var(--ink-3)", fontSize:"0.9rem" }}>
+        <div className="glass" style={{ padding:"56px 24px", textAlign:"center" }}>
+          <p style={{ color:"var(--ink-3)", fontSize:".9rem", marginBottom:20 }}>
             {search ? "No notes match your search." : "No notes yet. Generate your first note!"}
           </p>
+          {!search && <button className="btn-glow" onClick={() => navigate("/generate-note")}>Generate Note</button>}
         </div>
       )}
 
       <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
         {filtered.map((note, idx) => {
-          const isExp = expanded === note.id;
+          const isExp     = expanded === note.id;
           const wordCount = note.content?.trim().split(/\s+/).length || 0;
-          const preview = note.content?.slice(0,180) + (note.content?.length > 180 ? "…" : "");
+          const preview   = note.content?.slice(0, 160) + (note.content?.length > 160 ? "…" : "");
+
           return (
-            <div key={note.id} className="glass fade-up"
-              style={{ overflow:"hidden", animationDelay:`${idx*0.04}s` }}>
-              <div style={{
-                padding:"14px 20px",
-                borderBottom: isExp ? "1px solid var(--border)" : "none",
-              }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:14 }}>
+            <div key={note.id} className="glass fade-up" style={{ overflow:"hidden", animationDelay:`${idx * 0.04}s` }}>
+              <div style={{ padding:"14px 18px", borderBottom: isExp ? "1px solid var(--border)" : "none" }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3 }}>
-                      <span style={{
-                        fontWeight:600, color:"var(--ink)", fontSize:"0.88rem",
-                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:200,
-                      }}>{note.subject}</span>
-                      <span style={{ color:"var(--ink-4)", fontSize:"0.78rem" }}>›</span>
-                      <span style={{
-                        color:"var(--ink-2)", fontSize:"0.85rem",
-                        overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
-                      }}>{note.topic}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:3, flexWrap:"wrap" }}>
+                      <span style={{ fontWeight:600, color:"var(--ink)", fontSize:".88rem", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", maxWidth:160 }}>{note.subject}</span>
+                      <span style={{ color:"var(--ink-4)", fontSize:".78rem" }}>›</span>
+                      <span style={{ color:"var(--ink-2)", fontSize:".84rem", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1, maxWidth:180 }}>{note.topic}</span>
                     </div>
-                    <div style={{ display:"flex", gap:12, fontSize:"0.72rem", color:"var(--ink-3)" }}>
-                      <span>{new Date(note.created_at).toLocaleString()}</span>
+                    <div style={{ display:"flex", gap:10, fontSize:".7rem", color:"var(--ink-3)" }}>
+                      <span>{new Date(note.created_at).toLocaleDateString()}</span>
                       <span>· {wordCount} words</span>
                     </div>
-                    {!isExp && (
-                      <p style={{ color:"var(--ink-3)", fontSize:"0.82rem", marginTop:8, lineHeight:1.55 }}>
-                        {preview}
-                      </p>
-                    )}
+                    {!isExp && <p style={{ color:"var(--ink-3)", fontSize:".81rem", marginTop:8, lineHeight:1.55 }}>{preview}</p>}
                   </div>
-                  <div style={{ display:"flex", gap:6, flexShrink:0 }}>
-                    <button onClick={() => setExpanded(isExp?null:note.id)} style={{
-                      padding:"5px 12px", borderRadius:7, cursor:"pointer",
+
+                  {/* Action buttons */}
+                  <div style={{ display:"flex", gap:5, flexShrink:0, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                    <button onClick={() => setExpanded(isExp ? null : note.id)} style={{
+                      padding:"5px 11px", borderRadius:7, cursor:"pointer",
                       border:"1px solid var(--border-med)", background:"var(--bg-elevated)",
-                      color:"var(--ink-2)", fontFamily:"var(--font-body)",
-                      fontSize:"0.78rem", fontWeight:500, transition:"all 0.15s",
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.color="var(--amber)"}
-                      onMouseLeave={e => e.currentTarget.style.color="var(--ink-2)"}>
-                      {isExp ? "Collapse" : "Read"}
-                    </button>
+                      color:"var(--ink-2)", fontFamily:"var(--font-body)", fontSize:".77rem", fontWeight:500, transition:"all .15s",
+                    }}>{isExp ? "Collapse" : "Read"}</button>
+
                     <button onClick={() => handleCopy(note.content)} style={{
-                      padding:"5px 10px", borderRadius:7, cursor:"pointer",
+                      padding:"5px 9px", borderRadius:7, cursor:"pointer",
                       border:"1px solid var(--border)", background:"transparent",
-                      color:"var(--ink-3)", fontFamily:"var(--font-body)",
-                      fontSize:"0.78rem", transition:"all 0.15s",
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.color="var(--ink)"}
-                      onMouseLeave={e => e.currentTarget.style.color="var(--ink-3)"}>Copy</button>
-                    <button onClick={() => handleDownload(note)} style={{
-                      padding:"5px 10px", borderRadius:7, cursor:"pointer",
+                      color:"var(--ink-3)", fontFamily:"var(--font-body)", fontSize:".77rem", transition:"all .15s",
+                    }} title="Copy to clipboard">Copy</button>
+
+                    <button onClick={() => handlePrintPDF(note)} style={{
+                      padding:"5px 9px", borderRadius:7, cursor:"pointer",
                       border:"1px solid var(--border)", background:"transparent",
-                      color:"var(--ink-3)", fontFamily:"var(--font-body)",
-                      fontSize:"0.78rem", transition:"all 0.15s",
-                    }}
-                      onMouseEnter={e => e.currentTarget.style.color="var(--teal)"}
-                      onMouseLeave={e => e.currentTarget.style.color="var(--ink-3)"}>↓</button>
+                      color:"var(--ink-3)", fontFamily:"var(--font-body)", fontSize:".77rem", transition:"all .15s",
+                    }} title="Export as PDF">PDF</button>
+
                     <button onClick={() => handleDelete(note.id)} style={{
                       padding:"5px 8px", borderRadius:7, cursor:"pointer",
                       border:"1px solid transparent", background:"transparent",
-                      color:"var(--ink-4)", fontFamily:"var(--font-body)",
-                      fontSize:"0.78rem", transition:"all 0.15s",
+                      color:"var(--ink-4)", fontFamily:"var(--font-body)", fontSize:".77rem", transition:"all .15s",
                     }}
-                      onMouseEnter={e => { e.currentTarget.style.color="var(--rose)"; e.currentTarget.style.borderColor="rgba(251,113,133,0.25)"; }}
-                      onMouseLeave={e => { e.currentTarget.style.color="var(--ink-4)"; e.currentTarget.style.borderColor="transparent"; }}>
-                      ✕
-                    </button>
+                      onMouseEnter={e=>{e.currentTarget.style.color="var(--ruby)";e.currentTarget.style.borderColor="var(--ruby-border)";}}
+                      onMouseLeave={e=>{e.currentTarget.style.color="var(--ink-4)";e.currentTarget.style.borderColor="transparent";}}>✕</button>
                   </div>
                 </div>
               </div>
+
               {isExp && (
-                <div style={{
-                  padding:"18px 22px",
-                  color:"var(--ink-2)", lineHeight:1.9, fontSize:"0.9rem",
-                  whiteSpace:"pre-line", background:"var(--bg-elevated)",
-                }}>
+                <div style={{ padding:"18px 20px", color:"var(--ink-2)", lineHeight:1.9, fontSize:".89rem", whiteSpace:"pre-line", background:"var(--bg-elevated)" }}>
                   {note.content}
                 </div>
               )}
