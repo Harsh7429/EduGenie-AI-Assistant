@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
-import Login from "./pages/Login";
-import Signup from "./pages/Signup";
+import Login     from "./pages/Login";
+import Signup    from "./pages/Signup";
 import Dashboard from "./pages/Dashboard";
-import Layout from "./components/Layout";
+import NotFound  from "./pages/NotFound";
+import Layout    from "./components/Layout";
 import { ToastContainer } from "./components/Toast";
 
 const GenerateNote  = lazy(() => import("./pages/GenerateNote"));
@@ -39,6 +40,7 @@ export default function App() {
       <Routes>
         <Route path="/login"          element={<Login/>}/>
         <Route path="/signup"         element={<Signup/>}/>
+        <Route path="/"               element={<Navigate to="/dashboard" replace/>}/>
         <Route path="/dashboard"      element={<P page={<Dashboard/>}/>}/>
         <Route path="/subjects"       element={<P page={<Subjects/>}/>}/>
         <Route path="/generate-note"  element={<P page={<GenerateNote/>}/>}/>
@@ -49,7 +51,7 @@ export default function App() {
         <Route path="/chat"           element={<P page={<ChatTutor/>}/>}/>
         <Route path="/fyp-guide"      element={<P page={<FYPGuide/>}/>}/>
         <Route path="/resume-builder" element={<P page={<ResumeBuilder/>}/>}/>
-        <Route path="*"               element={<Navigate to="/login" replace/>}/>
+        <Route path="*"               element={<NotFound/>}/>
       </Routes>
     </>
   );
