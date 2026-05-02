@@ -6,37 +6,20 @@ import Dashboard from "./pages/Dashboard";
 import NotFound  from "./pages/NotFound";
 import Layout    from "./components/Layout";
 import { ToastContainer } from "./components/Toast";
-
-const GenerateNote  = lazy(() => import("./pages/GenerateNote"));
-const GenerateQuiz  = lazy(() => import("./pages/GenerateQuiz"));
-const MyQuizzes     = lazy(() => import("./pages/MyQuizzes"));
-const Analytics     = lazy(() => import("./pages/Analytics"));
-const Notes         = lazy(() => import("./pages/Notes"));
-const ChatTutor     = lazy(() => import("./pages/ChatTutor"));
-const Subjects      = lazy(() => import("./pages/Subjects"));
-const FYPGuide      = lazy(() => import("./pages/FYPGuide"));
-const ResumeBuilder = lazy(() => import("./pages/ResumeBuilder"));
-
-function ProtectedRoute({ children }) {
-  return localStorage.getItem("token") ? children : <Navigate to="/login" replace/>;
-}
-const Spin = () => (
-  <div style={{ padding:60, textAlign:"center" }}><div className="loader"/></div>
-);
-function P({ page }) {
-  return (
-    <ProtectedRoute>
-      <Layout>
-        <Suspense fallback={<Spin/>}>{page}</Suspense>
-      </Layout>
-    </ProtectedRoute>
-  );
-}
-
+const GenerateNote  = lazy(()=>import("./pages/GenerateNote"));
+const GenerateQuiz  = lazy(()=>import("./pages/GenerateQuiz"));
+const MyQuizzes     = lazy(()=>import("./pages/MyQuizzes"));
+const Analytics     = lazy(()=>import("./pages/Analytics"));
+const Notes         = lazy(()=>import("./pages/Notes"));
+const ChatTutor     = lazy(()=>import("./pages/ChatTutor"));
+const Subjects      = lazy(()=>import("./pages/Subjects"));
+const FYPGuide      = lazy(()=>import("./pages/FYPGuide"));
+const ResumeBuilder = lazy(()=>import("./pages/ResumeBuilder"));
+const Spin=()=><div style={{ padding:52,textAlign:"center" }}><div className="loader"/></div>;
+function P({page}){ return localStorage.getItem("token") ? <Layout><Suspense fallback={<Spin/>}>{page}</Suspense></Layout> : <Navigate to="/login" replace/>; }
 export default function App() {
   return (
-    <>
-      <ToastContainer/>
+    <><ToastContainer/>
       <Routes>
         <Route path="/login"          element={<Login/>}/>
         <Route path="/signup"         element={<Signup/>}/>
