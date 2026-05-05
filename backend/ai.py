@@ -1,8 +1,12 @@
 import os
+import time
+import logging
 import requests
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
@@ -14,24 +18,58 @@ HEADERS = {
 }
 
 
-def call_groq(prompt):
-
+def call_groq(prompt, timeout=30, max_retries=2):
+    """
+    Call the Groq API with automatic retry on transient failures.
+    Raises RuntimeError if all attempts fail so callers can surface a clean error.
+    """
     data = {
         "model": "llama-3.1-8b-instant",
         "messages": [
             {"role": "system", "content": "You are an academic assistant for MCA students."},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.7
+        "temperature": 0.7,
     }
 
-    response = requests.post(GROQ_URL, headers=HEADERS, json=data)
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            response = requests.post(
+                GROQ_URL, headers=HEADERS, json=data, timeout=timeout
+            )
 
-    if response.status_code != 200:
-        print("Groq Error:", response.text)
-        return "Error generating content."
+            if response.status_code != 200:
+                last_error = f"API returned HTTP {response.status_code}"
+                logger.warning(
+                    "Groq API error on attempt %d/%d — %s: %s",
+                    attempt, max_retries, last_error, response.text[:200],
+                )
+                if attempt < max_retries:
+                    time.sleep(1)
+                continue
 
-    return response.json()["choices"][0]["message"]["content"]
+            return response.json()["choices"][0]["message"]["content"]
+
+        except requests.exceptions.Timeout:
+            last_error = "Request timed out"
+            logger.warning("Groq API timeout on attempt %d/%d", attempt, max_retries)
+            if attempt < max_retries:
+                time.sleep(1)
+
+        except requests.exceptions.RequestException as exc:
+            last_error = str(exc)
+            logger.error("Groq API network error on attempt %d/%d: %s", attempt, max_retries, exc)
+            if attempt < max_retries:
+                time.sleep(1)
+
+        except (KeyError, IndexError) as exc:
+            # Unexpected payload shape — no point retrying
+            logger.error("Groq API unexpected response shape: %s", exc)
+            raise RuntimeError("AI service returned an unexpected response format") from exc
+
+    logger.error("Groq API failed after %d attempts: %s", max_retries, last_error)
+    raise RuntimeError(f"AI service unavailable after {max_retries} attempts: {last_error}")
 
 
 # ---------------------------------
@@ -129,6 +167,47 @@ def generate_quiz(subject, topic, difficulty="medium", num_questions=5):
     raw = raw.strip()
 
     return raw
+
+# ---------------------------------
+# QUIZ STRUCTURE VALIDATION
+# ---------------------------------
+def validate_quiz_structure(data):
+    """
+    Validate that a parsed quiz dict matches the expected schema:
+        { "questions": [ { "question": str, "options": [4 strs], "correct_answer": 0-3 }, ... ] }
+
+    Returns (True, None) on success or (False, reason_str) on failure.
+    Mutates nothing — purely read-only inspection.
+    """
+    if not isinstance(data, dict):
+        return False, "Response is not a JSON object"
+
+    questions = data.get("questions")
+    if not isinstance(questions, list) or len(questions) == 0:
+        return False, "Missing or empty 'questions' array"
+
+    for idx, q in enumerate(questions):
+        prefix = f"questions[{idx}]"
+
+        if not isinstance(q, dict):
+            return False, f"{prefix} is not an object"
+
+        if not isinstance(q.get("question"), str) or not q["question"].strip():
+            return False, f"{prefix}.question is missing or empty"
+
+        options = q.get("options")
+        if not isinstance(options, list) or len(options) != 4:
+            return False, f"{prefix}.options must be an array of exactly 4 items"
+
+        if not all(isinstance(o, str) and o.strip() for o in options):
+            return False, f"{prefix}.options must all be non-empty strings"
+
+        ca = q.get("correct_answer")
+        if not isinstance(ca, int) or ca not in (0, 1, 2, 3):
+            return False, f"{prefix}.correct_answer must be an integer 0-3"
+
+    return True, None
+
 
 # ---------------------------------
 # TOPIC GENERATION

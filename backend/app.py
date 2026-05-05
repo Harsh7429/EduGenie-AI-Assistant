@@ -1,6 +1,14 @@
 import os
+import logging
 from dotenv import load_dotenv
 load_dotenv()
+
+# ── Logging ──────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 from flask import Flask, request, jsonify
 from flask_jwt_extended import (
@@ -15,7 +23,7 @@ import bcrypt
 import psycopg2.extras
 
 from db import get_db_connection
-from ai import generate_note, generate_quiz, generate_topics, GROQ_URL, HEADERS
+from ai import generate_note, generate_quiz, generate_topics, validate_quiz_structure, GROQ_URL, HEADERS
 import requests
 
 
@@ -418,6 +426,7 @@ def ai_generate_note():
             (user_id, subject_id, topic_id, ai_content)
         )
         conn.commit()
+        logger.info("Note generated: user_id=%s subject=%s topic=%s", user_id, subject["name"], topic["name"])
     except Exception as e:
         conn.rollback()
         return jsonify({"error": f"Note generation failed: {str(e)}"}), 500
@@ -458,6 +467,10 @@ def ai_generate_quiz():
             subject_name = subj["name"]
             topic_name   = top["name"]
         elif subject_name and topic_name:
+            subject_name = subject_name.strip()
+            topic_name   = topic_name.strip()
+            if len(subject_name) < 3 or len(topic_name) < 3:
+                return jsonify({"error": "Subject and topic names must each be at least 3 characters"}), 400
             subject_id = None
             topic_id   = None
         else:
@@ -468,7 +481,27 @@ def ai_generate_quiz():
         try:
             quiz_content = json.loads(quiz_raw)
         except (json.JSONDecodeError, TypeError):
+            logger.error(
+                "Quiz JSON parse failed for subject=%s topic=%s — raw snippet: %s",
+                subject_name, topic_name, str(quiz_raw)[:200],
+            )
             return jsonify({"error": "AI returned invalid JSON format"}), 500
+
+        # Strict structural validation — ensures frontend never receives a broken quiz
+        valid, validation_error = validate_quiz_structure(quiz_content)
+        if not valid:
+            logger.error(
+                "Quiz structure invalid for subject=%s topic=%s — reason: %s",
+                subject_name, topic_name, validation_error,
+            )
+            return jsonify({
+                "error": f"AI returned a malformed quiz: {validation_error}"
+            }), 500
+
+        logger.info(
+            "Quiz generated: subject=%s topic=%s difficulty=%s questions=%d",
+            subject_name, topic_name, difficulty, len(quiz_content.get("questions", [])),
+        )
 
         quiz_content_json = json.dumps(quiz_content)
 
@@ -503,6 +536,8 @@ def ai_generate_topics():
     subject_name = data.get("subject_name", "").strip()
     if not subject_name:
         return jsonify({"error": "Subject name required"}), 400
+    if len(subject_name) < 3:
+        return jsonify({"error": "Subject name must be at least 3 characters"}), 400
     try:
         topics_list = generate_topics(subject_name)
         return jsonify({"message": "Topics generated successfully", "topics": topics_list}), 200
@@ -713,7 +748,7 @@ def submit_quiz(quiz_id):
         cur.close()
 
     except Exception as e:
-        print("submit_quiz error:", e)
+        logger.error("submit_quiz error for user_id=%s quiz_id=%s: %s", user_id, quiz_id, e)
         conn.rollback()
         conn.close()
         return jsonify({"error": f"Submission failed: {str(e)}"}), 500
@@ -724,181 +759,6 @@ def submit_quiz(quiz_id):
         "average_score":       round(avg_score, 2),
         "progress_percentage": progress_pct,
     }), 200
-
-
-# =========================
-# SUBMIT QUIZ V2
-# =========================
-
-def _grade_quiz(questions: list, answers: list) -> tuple:
-    """
-    Compare user answers against correct_answer indexes.
-
-    Returns:
-        correct_answers : list[bool]  — True if the user's answer matched
-        score           : int         — total number of correct answers
-    """
-    correct_answers = [
-        int(answers[i]) == int(q["correct_answer"])
-        for i, q in enumerate(questions)
-    ]
-    return correct_answers, sum(correct_answers)
-
-
-@app.route("/submit_quiz_v2", methods=["POST"])
-@jwt_required()
-def submit_quiz_v2():
-    """
-    POST /submit_quiz_v2
-
-    Body (JSON):
-        {
-            "user_id":    int,
-            "subject_id": int,
-            "topic_id":   int,
-            "quiz_id":    int,
-            "answers":    [int, ...]   // selected option index per question
-        }
-
-    Response 200:
-        { "score": int, "total": int, "correct_answers": [bool, ...] }
-    """
-    import json
-
-    data = request.json or {}
-
-    # ── 1. Validate required fields ───────────────────────────────────────────
-    required = ["user_id", "subject_id", "topic_id", "quiz_id", "answers"]
-    missing  = [f for f in required if data.get(f) is None]
-    if missing:
-        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
-
-    user_id    = data["user_id"]
-    subject_id = data["subject_id"]
-    topic_id   = data["topic_id"]
-    quiz_id    = data["quiz_id"]
-    answers    = data["answers"]
-
-    for field, val in [("user_id", user_id), ("subject_id", subject_id),
-                       ("topic_id", topic_id), ("quiz_id", quiz_id)]:
-        if not isinstance(val, int):
-            return jsonify({"error": f"'{field}' must be an integer"}), 400
-
-    if not isinstance(answers, list) or not all(isinstance(a, int) for a in answers):
-        return jsonify({"error": "'answers' must be a list of integers"}), 400
-
-    # ── 2. Fetch quiz content from DB ─────────────────────────────────────────
-    conn = require_conn()
-    try:
-        cur = dict_cursor(conn)
-        cur.execute("SELECT content FROM quizzes WHERE id = %s", (quiz_id,))
-        quiz_row = cur.fetchone()
-        cur.close()
-
-        if not quiz_row:
-            return jsonify({"error": f"Quiz with id {quiz_id} not found"}), 404
-
-        try:
-            questions = json.loads(quiz_row["content"])
-        except (json.JSONDecodeError, TypeError):
-            return jsonify({"error": "Quiz content is corrupted or not valid JSON"}), 500
-
-        if not isinstance(questions, list) or len(questions) == 0:
-            return jsonify({"error": "Quiz has no questions"}), 500
-
-        # ── 3. Validate answers length ────────────────────────────────────────
-        total = len(questions)
-        if len(answers) != total:
-            return jsonify({
-                "error": (
-                    f"Answer count mismatch: quiz has {total} question(s), "
-                    f"but {len(answers)} answer(s) were submitted"
-                )
-            }), 400
-
-        # ── 4. Grade the quiz ─────────────────────────────────────────────────
-        correct_answers, score = _grade_quiz(questions, answers)
-
-        # ── 5. Normalize score to percentage for progress tracking ────────────
-        normalized_score = round((score / total) * 100, 2)
-
-        # ── 6. Persist result in quiz_attempts (with answers as JSONB) ────────
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO quiz_attempts
-                (user_id, subject_id, topic_id, quiz_id, score, total_marks, answers, attempt_date)
-            VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, NOW())
-            """,
-            (user_id, subject_id, topic_id, quiz_id, score, total, json.dumps(answers))
-        )
-        conn.commit()
-        cur.close()
-
-        # ── 7. Upsert topic_progress ──────────────────────────────────────────
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO topic_progress
-                (user_id, subject_id, topic_id, avg_score, attempts, is_weak, last_updated)
-            VALUES
-                (%s, %s, %s, %s, 1, %s < 50, NOW())
-
-            ON CONFLICT (user_id, subject_id, topic_id) DO UPDATE
-            SET avg_score    = ((topic_progress.avg_score * topic_progress.attempts) + EXCLUDED.avg_score)
-                               / (topic_progress.attempts + 1),
-                attempts     = topic_progress.attempts + 1,
-                is_weak      = ((topic_progress.avg_score * topic_progress.attempts) + EXCLUDED.avg_score)
-                               / (topic_progress.attempts + 1) < 50,
-                last_updated = NOW()
-            """,
-            (user_id, subject_id, topic_id, normalized_score, normalized_score)
-        )
-        conn.commit()
-        cur.close()
-
-    except Exception as e:
-        conn.rollback()
-        return jsonify({"error": f"Submission failed: {str(e)}"}), 500
-
-    finally:
-        conn.close()
-
-    # ── 8. Return result (score/total unchanged as raw counts) ────────────────
-    return jsonify({
-        "score":           score,
-        "total":           total,
-        "correct_answers": correct_answers,
-    }), 200
-
-
-# =========================
-# WEAK TOPICS
-# =========================
-@app.route("/weak_topics", methods=["GET"])
-@jwt_required()
-def get_weak_topics():
-    user_id = int(get_jwt_identity())
-    conn    = require_conn()
-    cursor  = dict_cursor(conn)
-    try:
-        cursor.execute(
-            """
-            SELECT subject_id, topic_id, avg_score, attempts
-            FROM   topic_progress
-            WHERE  user_id = %s AND is_weak = TRUE
-            ORDER  BY avg_score ASC
-            """,
-            (user_id,)
-        )
-        rows = cursor.fetchall()
-    except Exception as e:
-        return jsonify({"error": f"Failed to fetch weak topics: {str(e)}"}), 500
-    finally:
-        cursor.close()
-        conn.close()
-
-    return jsonify([dict(row) for row in rows]), 200
 
 
 # =========================
@@ -1004,9 +864,8 @@ def get_personal_analytics():
         }), 200
 
     except Exception as e:
-        print("analytics error:", e)
+        logger.error("analytics error for user_id=%s: %s", user_id, e)
         conn.rollback()
-        conn.close()
         return jsonify({"error": str(e)}), 500
 
     finally:
@@ -1081,9 +940,8 @@ def get_personal_dashboard():
         }), 200
 
     except Exception as e:
-        print("personal dashboard error:", e)
+        logger.error("personal dashboard error for user_id=%s: %s", user_id, e)
         conn.rollback()
-        conn.close()
         return jsonify({"error": str(e)}), 500
 
     finally:
@@ -1109,7 +967,7 @@ def ai_fyp_guide():
         guide = generate_fyp_guide(domain, interest, team_size)
         return jsonify({"guide": guide}), 200
     except Exception as e:
-        print("FYP guide error:", e)
+        logger.error("FYP guide error: %s", e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -1127,7 +985,7 @@ def ai_resume_generate():
         latex = generate_resume_latex(data)
         return jsonify({"latex": latex}), 200
     except Exception as e:
-        print("Resume generate error:", e)
+        logger.error("Resume generate error: %s", e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -1144,7 +1002,7 @@ def ai_resume_improve():
         latex = improve_resume_latex(resume_text, target_role)
         return jsonify({"latex": latex}), 200
     except Exception as e:
-        print("Resume improve error:", e)
+        logger.error("Resume improve error: %s", e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -1195,7 +1053,7 @@ def ai_resume_compile():
             return jsonify({"pdf_base64": pdf_b64}), 200
 
     except Exception as e:
-        print("LaTeX compile error:", e)
+        logger.error("LaTeX compile error: %s", e)
         return jsonify({"error": str(e), "latex": latex_code}), 500
 
 
@@ -1231,6 +1089,7 @@ def ai_chat():
         response = requests.post(
             GROQ_URL, headers=HEADERS,
             json={"model": "llama-3.1-8b-instant", "messages": messages, "temperature": 0.7, "max_tokens": 1024},
+            timeout=30,
         )
 
         if response.status_code != 200:
@@ -1240,7 +1099,7 @@ def ai_chat():
         return jsonify({"reply": reply}), 200
 
     except Exception as e:
-        print("Chat error:", e)
+        logger.error("Chat error: %s", e)
         return jsonify({"error": "Chat failed"}), 500
 
 

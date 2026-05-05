@@ -1,6 +1,10 @@
+import logging
+
 import psycopg2
 import psycopg2.extras
 from config import DB_CONFIG
+
+logger = logging.getLogger(__name__)
 
 
 def get_db_connection():
@@ -8,7 +12,7 @@ def get_db_connection():
         connection = psycopg2.connect(**DB_CONFIG)
         return connection
     except psycopg2.Error as err:
-        print("Database connection error:", err)
+        logger.error("Database connection failed: %s", err)
         return None
 
 
@@ -64,17 +68,17 @@ def initialize_progress_tables():
         # Add quiz_id column if missing
         if not _col_exists(cursor, 'quiz_attempts', 'quiz_id'):
             cursor.execute("ALTER TABLE quiz_attempts ADD COLUMN quiz_id INT NULL")
-            print("Migration: added quiz_id to quiz_attempts")
+            logger.info("Migration: added quiz_id to quiz_attempts")
 
         # Make subject_id nullable if not already
         if not _col_nullable(cursor, 'quiz_attempts', 'subject_id'):
             cursor.execute("ALTER TABLE quiz_attempts ALTER COLUMN subject_id DROP NOT NULL")
-            print("Migration: made subject_id nullable in quiz_attempts")
+            logger.info("Migration: made subject_id nullable in quiz_attempts")
 
         # Make topic_id nullable if not already
         if not _col_nullable(cursor, 'quiz_attempts', 'topic_id'):
             cursor.execute("ALTER TABLE quiz_attempts ALTER COLUMN topic_id DROP NOT NULL")
-            print("Migration: made topic_id nullable in quiz_attempts")
+            logger.info("Migration: made topic_id nullable in quiz_attempts")
 
         # ── user_progress table ───────────────────────────────────────────
         cursor.execute("""
@@ -104,14 +108,14 @@ def initialize_progress_tables():
                 ALTER TABLE user_progress
                 ADD CONSTRAINT unique_user_subject UNIQUE (user_id, subject_id)
             """)
-            print("Migration: added unique_user_subject to user_progress")
+            logger.info("Migration: added unique_user_subject to user_progress")
 
         connection.commit()
-        print("Progress tracking tables ready.")
+        logger.info("Progress tracking tables ready.")
 
     except psycopg2.Error as err:
         connection.rollback()
-        print("Error initializing tables:", err)
+        logger.error("Error initializing progress tables: %s", err)
 
     finally:
         cursor.close()
