@@ -80,6 +80,11 @@ def initialize_progress_tables():
             cursor.execute("ALTER TABLE quiz_attempts ALTER COLUMN topic_id DROP NOT NULL")
             logger.info("Migration: made topic_id nullable in quiz_attempts")
 
+        # Add is_weak column for weak-topic detection (NULL = no server evaluation yet)
+        if not _col_exists(cursor, 'quiz_attempts', 'is_weak'):
+            cursor.execute("ALTER TABLE quiz_attempts ADD COLUMN is_weak BOOLEAN DEFAULT NULL")
+            logger.info("Migration: added is_weak to quiz_attempts")
+
         # ── user_progress table ───────────────────────────────────────────
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS user_progress (
