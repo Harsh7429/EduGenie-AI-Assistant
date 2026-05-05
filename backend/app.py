@@ -727,6 +727,181 @@ def submit_quiz(quiz_id):
 
 
 # =========================
+# SUBMIT QUIZ V2
+# =========================
+
+def _grade_quiz(questions: list, answers: list) -> tuple:
+    """
+    Compare user answers against correct_answer indexes.
+
+    Returns:
+        correct_answers : list[bool]  — True if the user's answer matched
+        score           : int         — total number of correct answers
+    """
+    correct_answers = [
+        int(answers[i]) == int(q["correct_answer"])
+        for i, q in enumerate(questions)
+    ]
+    return correct_answers, sum(correct_answers)
+
+
+@app.route("/submit_quiz_v2", methods=["POST"])
+@jwt_required()
+def submit_quiz_v2():
+    """
+    POST /submit_quiz_v2
+
+    Body (JSON):
+        {
+            "user_id":    int,
+            "subject_id": int,
+            "topic_id":   int,
+            "quiz_id":    int,
+            "answers":    [int, ...]   // selected option index per question
+        }
+
+    Response 200:
+        { "score": int, "total": int, "correct_answers": [bool, ...] }
+    """
+    import json
+
+    data = request.json or {}
+
+    # ── 1. Validate required fields ───────────────────────────────────────────
+    required = ["user_id", "subject_id", "topic_id", "quiz_id", "answers"]
+    missing  = [f for f in required if data.get(f) is None]
+    if missing:
+        return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+
+    user_id    = data["user_id"]
+    subject_id = data["subject_id"]
+    topic_id   = data["topic_id"]
+    quiz_id    = data["quiz_id"]
+    answers    = data["answers"]
+
+    for field, val in [("user_id", user_id), ("subject_id", subject_id),
+                       ("topic_id", topic_id), ("quiz_id", quiz_id)]:
+        if not isinstance(val, int):
+            return jsonify({"error": f"'{field}' must be an integer"}), 400
+
+    if not isinstance(answers, list) or not all(isinstance(a, int) for a in answers):
+        return jsonify({"error": "'answers' must be a list of integers"}), 400
+
+    # ── 2. Fetch quiz content from DB ─────────────────────────────────────────
+    conn = require_conn()
+    try:
+        cur = dict_cursor(conn)
+        cur.execute("SELECT content FROM quizzes WHERE id = %s", (quiz_id,))
+        quiz_row = cur.fetchone()
+        cur.close()
+
+        if not quiz_row:
+            return jsonify({"error": f"Quiz with id {quiz_id} not found"}), 404
+
+        try:
+            questions = json.loads(quiz_row["content"])
+        except (json.JSONDecodeError, TypeError):
+            return jsonify({"error": "Quiz content is corrupted or not valid JSON"}), 500
+
+        if not isinstance(questions, list) or len(questions) == 0:
+            return jsonify({"error": "Quiz has no questions"}), 500
+
+        # ── 3. Validate answers length ────────────────────────────────────────
+        total = len(questions)
+        if len(answers) != total:
+            return jsonify({
+                "error": (
+                    f"Answer count mismatch: quiz has {total} question(s), "
+                    f"but {len(answers)} answer(s) were submitted"
+                )
+            }), 400
+
+        # ── 4. Grade the quiz ─────────────────────────────────────────────────
+        correct_answers, score = _grade_quiz(questions, answers)
+
+        # ── 5. Normalize score to percentage for progress tracking ────────────
+        normalized_score = round((score / total) * 100, 2)
+
+        # ── 6. Persist result in quiz_attempts (with answers as JSONB) ────────
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO quiz_attempts
+                (user_id, subject_id, topic_id, quiz_id, score, total_marks, answers, attempt_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb, NOW())
+            """,
+            (user_id, subject_id, topic_id, quiz_id, score, total, json.dumps(answers))
+        )
+        conn.commit()
+        cur.close()
+
+        # ── 7. Upsert topic_progress ──────────────────────────────────────────
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO topic_progress
+                (user_id, subject_id, topic_id, avg_score, attempts, is_weak, last_updated)
+            VALUES
+                (%s, %s, %s, %s, 1, %s < 50, NOW())
+
+            ON CONFLICT (user_id, subject_id, topic_id) DO UPDATE
+            SET avg_score    = ((topic_progress.avg_score * topic_progress.attempts) + EXCLUDED.avg_score)
+                               / (topic_progress.attempts + 1),
+                attempts     = topic_progress.attempts + 1,
+                is_weak      = ((topic_progress.avg_score * topic_progress.attempts) + EXCLUDED.avg_score)
+                               / (topic_progress.attempts + 1) < 50,
+                last_updated = NOW()
+            """,
+            (user_id, subject_id, topic_id, normalized_score, normalized_score)
+        )
+        conn.commit()
+        cur.close()
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": f"Submission failed: {str(e)}"}), 500
+
+    finally:
+        conn.close()
+
+    # ── 8. Return result (score/total unchanged as raw counts) ────────────────
+    return jsonify({
+        "score":           score,
+        "total":           total,
+        "correct_answers": correct_answers,
+    }), 200
+
+
+# =========================
+# WEAK TOPICS
+# =========================
+@app.route("/weak_topics", methods=["GET"])
+@jwt_required()
+def get_weak_topics():
+    user_id = int(get_jwt_identity())
+    conn    = require_conn()
+    cursor  = dict_cursor(conn)
+    try:
+        cursor.execute(
+            """
+            SELECT subject_id, topic_id, avg_score, attempts
+            FROM   topic_progress
+            WHERE  user_id = %s AND is_weak = TRUE
+            ORDER  BY avg_score ASC
+            """,
+            (user_id,)
+        )
+        rows = cursor.fetchall()
+    except Exception as e:
+        return jsonify({"error": f"Failed to fetch weak topics: {str(e)}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+    return jsonify([dict(row) for row in rows]), 200
+
+
+# =========================
 # ANALYTICS
 # =========================
 @app.route("/analytics/personal", methods=["GET"])
