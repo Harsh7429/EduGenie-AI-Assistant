@@ -24,7 +24,12 @@ import psycopg2.extras
 
 from db import get_db_connection
 from ai import generate_note, generate_quiz, generate_topics, validate_quiz_structure, GROQ_URL, HEADERS
-from helpers import evaluate_quiz, detect_weak_topic, compute_percentage, quiz_cache, WEAK_THRESHOLD, STRONG_THRESHOLD
+from helpers import (
+    evaluate_quiz, detect_weak_topic, compute_percentage,
+    classify_performance, recommend_difficulty, generate_smart_feedback,
+    generate_study_plan, generate_insights, compute_streaks,
+    quiz_cache, WEAK_THRESHOLD, STRONG_THRESHOLD,
+)
 import requests
 
 
@@ -814,15 +819,24 @@ def submit_quiz(quiz_id):
 
     conn.close()
 
-    # ── Build response — keeps all existing fields, adds new ones ─────────
+    # Resolve topic/subject name for feedback context
+    # (topic_id/subject_id already held in outer scope from the quiz fetch)
+    pct = evaluation["percentage"] if evaluation else compute_percentage(score, total_marks)
+
+    # ── Build response — all existing fields kept, new ones appended ──────
     response_body = {
+        # existing fields (unchanged — frontend depends on these)
         "message":             "Quiz submitted successfully",
         "average_score":       round(avg_score, 2),
         "progress_percentage": progress_pct,
-        # ── new fields (ignored by older frontend versions) ───────────────
+        # phase-2 fields
         "is_weak":             is_weak,
-        "percentage":          compute_percentage(score, total_marks),
+        "percentage":          pct,
         "recommended_retry":   bool(is_weak),
+        # phase-3 NEW personalization fields
+        "performance_level":   classify_performance(pct),
+        "recommended_difficulty": recommend_difficulty(pct),
+        "feedback":            generate_smart_feedback(pct),
     }
     if evaluation:
         response_body["evaluation"] = {
@@ -955,7 +969,7 @@ def get_personal_analytics():
         diff_row = cur.fetchone()
         cur.close()
 
-        # ── Improvement trend (last 5 vs previous 5 attempts) ─────────────
+        # ── Improvement trend ──────────────────────────────────────────────
         improvement_trend = "neutral"
         if len(trend) >= 4:
             half      = len(trend) // 2
@@ -974,11 +988,42 @@ def get_personal_analytics():
                 "avg":     w["avg"],
                 "reason":  f"Score {w['avg']}% is below the {int(WEAK_THRESHOLD)}% threshold — retry recommended",
             }
-            for w in weak_topics[:5]   # cap at 5 so the list stays actionable
+            for w in weak_topics[:5]
         ]
 
+        # ── Learning streaks (computed from attempt dates — no new table) ──
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT attempt_date FROM quiz_attempts WHERE user_id = %s AND attempt_date IS NOT NULL",
+            (user_id,)
+        )
+        raw_dates   = [row[0] for row in cur.fetchall()]
+        cur.close()
+        streak_data = compute_streaks(raw_dates)
+
+        # ── Personalization layer ──────────────────────────────────────────
+        study_plan             = generate_study_plan(weak_topics, improvement_trend, [
+            {"subject": r["subject_name"], "avg": float(r["avg_pct"]), "attempts": r["attempts"]}
+            for r in subject_perf
+        ])
+        recommended_difficulty = recommend_difficulty(overall_avg)
+        performance_level      = classify_performance(overall_avg)
+        insights               = generate_insights(
+            trend_data        = trend,
+            subject_perf      = [
+                {"subject": r["subject_name"], "avg": float(r["avg_pct"]), "attempts": r["attempts"]}
+                for r in subject_perf
+            ],
+            weak_topics       = weak_topics,
+            strong_topics     = strong_topics,
+            total_attempts    = total_attempts,
+            improvement_trend = improvement_trend,
+            current_streak    = streak_data["current"],
+            overall_avg       = overall_avg,
+        )
+
         return jsonify({
-            # ── existing fields (unchanged) ───────────────────────────────
+            # ── Phase-1 existing fields (UNCHANGED) ───────────────────────
             "total_attempts":      total_attempts,
             "overall_avg":         overall_avg,
             "total_notes":         total_notes,
@@ -994,11 +1039,17 @@ def get_personal_analytics():
                 "average": int(diff_row[1] or 0),
                 "weak":    int(diff_row[2] or 0),
             },
-            # ── new fields (additive — existing frontend ignores them safely)
+            # ── Phase-2 fields (additive) ──────────────────────────────────
             "weak_topics":         weak_topics,
             "strong_topics":       strong_topics,
             "improvement_trend":   improvement_trend,
             "recommended_topics":  recommended_topics,
+            # ── Phase-3 NEW personalization fields ─────────────────────────
+            "study_plan":              study_plan,
+            "recommended_difficulty":  recommended_difficulty,
+            "performance_level":       performance_level,
+            "insights":                insights,
+            "learning_streak":         streak_data,
         }), 200
 
     except Exception as e:
