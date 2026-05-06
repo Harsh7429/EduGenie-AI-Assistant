@@ -15,7 +15,7 @@ export function ToastContainer() {
   return (
     <div style={{ position:"fixed",bottom:68,right:14,zIndex:9999,display:"flex",flexDirection:"column",gap:7,maxWidth:"calc(100vw - 28px)" }}>
       {toasts.map(t=>{ const c=CFG[t.type]; return (
-        <div key={t.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"9px 14px",borderRadius:9,background:"var(--bg-3)",border:`0.5px solid ${c.b}`,boxShadow:"0 6px 24px rgba(0,0,0,.5)",animation:"fadeUp .3s var(--ease-out) both",fontFamily:"var(--font-body)",maxWidth:320 }}>
+        <div key={t.id} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:10,background:"var(--bg-3)",border:`0.5px solid ${c.b}`,boxShadow:"0 8px 32px rgba(0,0,0,.55)",fontFamily:"var(--font-body)",maxWidth:340 }} className="toast-enter" role="alert" aria-live="polite">
           <div style={{ width:20,height:20,borderRadius:"50%",flexShrink:0,background:`color-mix(in srgb,${c.c} 12%,transparent)`,color:c.c,display:"flex",alignItems:"center",justifyContent:"center" }}>{ICONS[t.type]}</div>
           <span style={{ color:"var(--ink-2)",fontSize:13,lineHeight:1.4 }}>{t.message}</span>
         </div>

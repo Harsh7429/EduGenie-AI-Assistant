@@ -1,6 +1,19 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 
+const PAGE_TITLES = {
+  "/dashboard":     "Dashboard — EduGenie",
+  "/subjects":      "Subjects — EduGenie",
+  "/generate-note": "Generate Note — EduGenie",
+  "/generate-quiz": "Generate Quiz — EduGenie",
+  "/my-quizzes":    "Quiz History — EduGenie",
+  "/analytics":     "Analytics — EduGenie",
+  "/notes":         "My Notes — EduGenie",
+  "/chat":          "AI Tutor — EduGenie",
+  "/fyp-guide":     "FYP Guide — EduGenie",
+  "/resume-builder":"Resume Builder — EduGenie",
+};
+
 const I = {
   dash:    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.3"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.5" stroke="currentColor" strokeWidth="1.3"/></svg>,
   subs:    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2.5 3.5A1 1 0 013.5 2.5h9a1 1 0 011 1v9a1 1 0 01-1 1h-9a1 1 0 01-1-1v-9z" stroke="currentColor" strokeWidth="1.3"/><path d="M5 5.5h6M5 8h6M5 10.5h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
@@ -81,24 +94,43 @@ export default function Layout({ children }) {
   const active = p => loc.pathname === p;
   const go = p => { navigate(p); setOpen(false); };
 
+  // Page title management
+  useEffect(() => {
+    document.title = PAGE_TITLES[loc.pathname] || "EduGenie — AI Learning Platform";
+  }, [loc.pathname]);
+
   const NavBtn = ({ path, label, icon, color }) => {
     const ac = color || "var(--amber)";
     const on = active(path);
     return (
-      <button onClick={() => go(path)} title={label} style={{
-        display:"flex", alignItems:"center", gap:9, width:"100%",
-        padding:"8px 11px", borderRadius:"var(--r-md)", border:"none", cursor:"pointer",
-        background: on ? `color-mix(in srgb, ${ac} 12%, transparent)` : "transparent",
-        color: on ? ac : "var(--ink-3)",
-        fontFamily:"var(--font-body)", fontSize:13, fontWeight: on ? 500 : 400,
-        transition:"all .13s", WebkitTapHighlightColor:"transparent", textAlign:"left",
-      }}
+      <button
+        onClick={() => go(path)}
+        title={label}
+        aria-label={label}
+        aria-current={on ? "page" : undefined}
+        style={{
+          display:"flex", alignItems:"center", gap:9, width:"100%",
+          padding:"8px 11px", borderRadius:"var(--r-md)", border:"none",
+          cursor:"pointer", position:"relative",
+          background: on ? `color-mix(in srgb, ${ac} 12%, transparent)` : "transparent",
+          color: on ? ac : "var(--ink-3)",
+          fontFamily:"var(--font-body)", fontSize:13, fontWeight: on ? 500 : 400,
+          transition:"background .13s, color .13s",
+          WebkitTapHighlightColor:"transparent", textAlign:"left",
+        }}
         onMouseEnter={e => { if (!on) { e.currentTarget.style.background="rgba(255,255,255,.04)"; e.currentTarget.style.color="var(--ink-2)"; }}}
         onMouseLeave={e => { if (!on) { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="var(--ink-3)"; }}}
       >
-        <span style={{ flexShrink:0, opacity:on?1:.55, display:"flex" }}>{icon}</span>
+        {/* Left accent bar for active state */}
+        {on && (
+          <span style={{
+            position:"absolute", left:0, top:"20%", bottom:"20%",
+            width:"2.5px", borderRadius:"0 2px 2px 0",
+            background:ac,
+          }}/>
+        )}
+        <span style={{ flexShrink:0, opacity:on?1:.5, display:"flex", transition:"opacity .13s" }}>{icon}</span>
         <span style={{ flex:1 }}>{label}</span>
-        {on && <span style={{ width:4, height:4, borderRadius:"50%", background:ac, flexShrink:0 }}/>}
       </button>
     );
   };
@@ -174,20 +206,36 @@ export default function Layout({ children }) {
       </div>
 
       {open && <>
-        <div onClick={() => setOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:98, backdropFilter:"blur(3px)" }}/>
-        <div style={{ position:"fixed", top:"var(--topbar-h)", left:0, bottom:0, width:250, zIndex:99, background:"var(--bg-2)", borderRight:"0.5px solid var(--border)", overflowY:"auto" }}>
+        <div
+          onClick={() => setOpen(false)}
+          style={{ position:"fixed", inset:0, background:"rgba(0,0,0,.65)", zIndex:98, backdropFilter:"blur(4px)", WebkitBackdropFilter:"blur(4px)", transition:"opacity .2s" }}
+        />
+        <div
+          className="slide-in-left"
+          style={{ position:"fixed", top:"var(--topbar-h)", left:0, bottom:0, width:260, zIndex:99, background:"var(--bg-2)", borderRight:"0.5px solid var(--border)", overflowY:"auto", boxShadow:"4px 0 24px rgba(0,0,0,.4)" }}
+        >
           <SidebarInner/>
         </div>
       </>}
 
-      <nav className="bottom-nav-bar" style={{ display:"none", position:"fixed", bottom:0, left:0, right:0, zIndex:100, background:"rgba(13,13,18,.97)", backdropFilter:"blur(20px)", borderTop:"0.5px solid var(--border)", height:"var(--bottomnav-h)", padding:"0 2px", alignItems:"center", justifyContent:"space-around" }}>
+      <nav
+        className="bottom-nav-bar"
+        aria-label="Main navigation"
+        style={{ display:"none", position:"fixed", bottom:0, left:0, right:0, zIndex:100, background:"rgba(13,13,18,.97)", backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)", borderTop:"0.5px solid var(--border)", height:"var(--bottomnav-h)", padding:"0 2px", alignItems:"center", justifyContent:"space-around" }}
+      >
         {BOTTOM.map(item => {
           const on = active(item.path);
           return (
-            <button key={item.path} onClick={() => go(item.path)} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, flex:1, padding:"6px 0", border:"none", background:"transparent", cursor:"pointer", color:on?"var(--amber)":"var(--ink-4)", transition:"color .13s", WebkitTapHighlightColor:"transparent" }}>
-              <span style={{ display:"flex", opacity:on?1:.45 }}>{item.icon}</span>
+            <button
+              key={item.path}
+              onClick={() => go(item.path)}
+              aria-label={item.label}
+              aria-current={on ? "page" : undefined}
+              style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, flex:1, padding:"6px 0", border:"none", background:"transparent", cursor:"pointer", color:on?"var(--amber)":"var(--ink-4)", transition:"color .13s", WebkitTapHighlightColor:"transparent", minHeight:44 }}
+            >
+              <span style={{ display:"flex", opacity:on?1:.45, transition:"opacity .13s, transform .13s", transform: on ? "scale(1.1)" : "scale(1)" }}>{item.icon}</span>
               <span style={{ fontSize:10, fontWeight:on?500:400 }}>{item.label}</span>
-              {on && <div style={{ width:16, height:"1.5px", borderRadius:99, background:"var(--amber)", marginTop:1 }}/>}
+              <div style={{ width: on ? 16 : 0, height:"1.5px", borderRadius:99, background:"var(--amber)", transition:"width .2s var(--ease-out)", marginTop:1 }}/>
             </button>
           );
         })}
