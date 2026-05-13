@@ -6,35 +6,71 @@ import Dashboard from "./pages/Dashboard";
 import NotFound  from "./pages/NotFound";
 import Layout    from "./components/Layout";
 import { ToastContainer } from "./components/Toast";
-const GenerateNote  = lazy(()=>import("./pages/GenerateNote"));
-const GenerateQuiz  = lazy(()=>import("./pages/GenerateQuiz"));
-const MyQuizzes     = lazy(()=>import("./pages/MyQuizzes"));
-const Analytics     = lazy(()=>import("./pages/Analytics"));
-const Notes         = lazy(()=>import("./pages/Notes"));
-const ChatTutor     = lazy(()=>import("./pages/ChatTutor"));
-const Subjects      = lazy(()=>import("./pages/Subjects"));
-const FYPGuide      = lazy(()=>import("./pages/FYPGuide"));
-const ResumeBuilder = lazy(()=>import("./pages/ResumeBuilder"));
-const Spin=()=><div style={{ padding:52,textAlign:"center" }}><div className="loader"/></div>;
-function P({page}){ return localStorage.getItem("token") ? <Layout><Suspense fallback={<Spin/>}>{page}</Suspense></Layout> : <Navigate to="/login" replace/>; }
+
+// Lazy-loaded pages — code-split per route for faster initial load
+const GenerateNote  = lazy(() => import("./pages/GenerateNote"));
+const GenerateQuiz  = lazy(() => import("./pages/GenerateQuiz"));
+const MyQuizzes     = lazy(() => import("./pages/MyQuizzes"));
+const Analytics     = lazy(() => import("./pages/Analytics"));
+const Notes         = lazy(() => import("./pages/Notes"));
+const ChatTutor     = lazy(() => import("./pages/ChatTutor"));
+const Subjects      = lazy(() => import("./pages/Subjects"));
+const FYPGuide      = lazy(() => import("./pages/FYPGuide"));
+const ResumeBuilder = lazy(() => import("./pages/ResumeBuilder"));
+
+// Loading fallback shown while lazy chunks are being fetched
+function PageLoader() {
+  return (
+    <div style={{ padding: 52, textAlign: "center" }}>
+      <div className="loader" />
+    </div>
+  );
+}
+
+/**
+ * PrivateRoute — wraps a page in the app Layout and checks for an active
+ * JWT token. Redirects to /login if the user is not authenticated.
+ */
+function PrivateRoute({ page }) {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return (
+    <Layout>
+      <Suspense fallback={<PageLoader />}>
+        {page}
+      </Suspense>
+    </Layout>
+  );
+}
+
 export default function App() {
   return (
-    <><ToastContainer/>
+    <>
+      <ToastContainer />
       <Routes>
-        <Route path="/login"          element={<Login/>}/>
-        <Route path="/signup"         element={<Signup/>}/>
-        <Route path="/"               element={<Navigate to="/dashboard" replace/>}/>
-        <Route path="/dashboard"      element={<P page={<Dashboard/>}/>}/>
-        <Route path="/subjects"       element={<P page={<Subjects/>}/>}/>
-        <Route path="/generate-note"  element={<P page={<GenerateNote/>}/>}/>
-        <Route path="/generate-quiz"  element={<P page={<GenerateQuiz/>}/>}/>
-        <Route path="/my-quizzes"     element={<P page={<MyQuizzes/>}/>}/>
-        <Route path="/analytics"      element={<P page={<Analytics/>}/>}/>
-        <Route path="/notes"          element={<P page={<Notes/>}/>}/>
-        <Route path="/chat"           element={<P page={<ChatTutor/>}/>}/>
-        <Route path="/fyp-guide"      element={<P page={<FYPGuide/>}/>}/>
-        <Route path="/resume-builder" element={<P page={<ResumeBuilder/>}/>}/>
-        <Route path="*"               element={<NotFound/>}/>
+        {/* Public routes */}
+        <Route path="/login"  element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+
+        {/* Root redirect */}
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+        {/* Protected routes */}
+        <Route path="/dashboard"      element={<PrivateRoute page={<Dashboard />} />} />
+        <Route path="/subjects"       element={<PrivateRoute page={<Subjects />} />} />
+        <Route path="/generate-note"  element={<PrivateRoute page={<GenerateNote />} />} />
+        <Route path="/generate-quiz"  element={<PrivateRoute page={<GenerateQuiz />} />} />
+        <Route path="/my-quizzes"     element={<PrivateRoute page={<MyQuizzes />} />} />
+        <Route path="/analytics"      element={<PrivateRoute page={<Analytics />} />} />
+        <Route path="/notes"          element={<PrivateRoute page={<Notes />} />} />
+        <Route path="/chat"           element={<PrivateRoute page={<ChatTutor />} />} />
+        <Route path="/fyp-guide"      element={<PrivateRoute page={<FYPGuide />} />} />
+        <Route path="/resume-builder" element={<PrivateRoute page={<ResumeBuilder />} />} />
+
+        {/* 404 */}
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </>
   );

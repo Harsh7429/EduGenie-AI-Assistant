@@ -1,14 +1,7 @@
 import os
-import logging
+import re
 from dotenv import load_dotenv
 load_dotenv()
-
-# ── Logging ──────────────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
-logger = logging.getLogger(__name__)
 
 from flask import Flask, request, jsonify
 from flask_jwt_extended import (
@@ -18,35 +11,43 @@ from flask_jwt_extended import (
     get_jwt_identity
 )
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from datetime import timedelta
 import bcrypt
 import psycopg2.extras
 
 from db import get_db_connection
-from ai import generate_note, generate_quiz, generate_topics, validate_quiz_structure, GROQ_URL, HEADERS
-from helpers import (
-    evaluate_quiz, detect_weak_topic, compute_percentage,
-    classify_performance, recommend_difficulty, generate_smart_feedback,
-    generate_study_plan, generate_insights, compute_streaks,
-    quiz_cache, WEAK_THRESHOLD, STRONG_THRESHOLD,
-)
+from ai import generate_note, generate_quiz, generate_topics, GROQ_URL, HEADERS
 import requests
 
 
 app = Flask(__name__)
 
-# ── CORS: restrict to your actual frontend domain in production ──────
-# Replace the origin list with your deployed Vercel URL.
+# ── CORS ─────────────────────────────────────────────────────────────
 CORS(app, resources={r"/*": {"origins": [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    os.getenv("FRONTEND_URL", "*"),  # set FRONTEND_URL=https://your-app.vercel.app
+    os.getenv("FRONTEND_URL", "*"),
 ]}}, supports_credentials=True)
 
 # ── JWT ──────────────────────────────────────────────────────────────
 app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY")
 app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=6)
 jwt = JWTManager(app)
+
+# ── Rate Limiter ──────────────────────────────────────────────────────
+# Limits are applied per IP. AI routes are capped at 10 requests/minute
+# to prevent accidental Groq quota exhaustion.
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://"
+)
+
+# ── Email validation ──────────────────────────────────────────────────
+EMAIL_RE = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -79,19 +80,21 @@ def home():
 # ── SIGNUP ───────────────────────────────────────────────────────────
 @app.route("/signup", methods=["POST"])
 def signup():
-    data = request.json or {}
+    data     = request.json or {}
     name     = data.get("name", "").strip()
     email    = data.get("email", "").strip().lower()
     password = data.get("password", "")
 
     if not name or not email or not password:
         return jsonify({"error": "All fields are required"}), 400
+    if not EMAIL_RE.match(email):
+        return jsonify({"error": "Please enter a valid email address"}), 400
     if len(password) < 6:
         return jsonify({"error": "Password must be at least 6 characters"}), 400
 
     hashed = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt())
 
-    conn = require_conn()
+    conn   = require_conn()
     cursor = conn.cursor()
     try:
         cursor.execute(
@@ -112,7 +115,7 @@ def signup():
 # ── LOGIN ─────────────────────────────────────────────────────────────
 @app.route("/login", methods=["POST"])
 def login():
-    data = request.json or {}
+    data     = request.json or {}
     email    = data.get("email", "").strip().lower()
     password = data.get("password", "")
 
@@ -155,7 +158,6 @@ def profile():
         cursor.close()
         conn.close()
 
-    # FIX: guard against deleted/missing user
     if not user:
         return jsonify({"error": "User not found"}), 404
 
@@ -178,10 +180,6 @@ def get_subjects():
         cursor.close()
         conn.close()
     return jsonify([dict(s) for s in subjects]), 200
-
-
-# NOTE: /subjects/<semester_id> removed — duplicate of /subjects/semester/<semester_id>
-# Frontend uses /subjects/semester/<id>, so that route is the canonical one.
 
 
 @app.route("/subjects/semester/<int:semester_id>", methods=["GET"])
@@ -317,7 +315,6 @@ def get_units(subject_id):
 @jwt_required()
 def create_topic():
     data    = request.json or {}
-    # FIX: was incorrectly using subject_id; topics belong to a unit
     unit_id = data.get("unit_id")
     name    = data.get("name", "").strip()
 
@@ -327,7 +324,6 @@ def create_topic():
     conn   = require_conn()
     cursor = conn.cursor()
     try:
-        # FIX: column is unit_id, not subject_id
         cursor.execute(
             "INSERT INTO topics (unit_id, name) VALUES (%s, %s)",
             (unit_id, name)
@@ -404,8 +400,9 @@ def get_dashboard_stats():
 # ── AI NOTE GENERATION ────────────────────────────────────────────────
 @app.route("/ai/generate-note", methods=["POST"])
 @jwt_required()
+@limiter.limit("10 per minute")
 def ai_generate_note():
-    data = request.json or {}
+    data       = request.json or {}
     subject_id = data.get("subject_id")
     topic_id   = data.get("topic_id")
 
@@ -423,7 +420,6 @@ def ai_generate_note():
         if not subject or not topic:
             return jsonify({"error": "Invalid subject or topic"}), 404
 
-        # AI call happens outside the cursor but inside the try block
         ai_content = generate_note(subject["name"], topic["name"])
 
         user_id = int(get_jwt_identity())
@@ -432,12 +428,10 @@ def ai_generate_note():
             (user_id, subject_id, topic_id, ai_content)
         )
         conn.commit()
-        logger.info("Note generated: user_id=%s subject=%s topic=%s", user_id, subject["name"], topic["name"])
     except Exception as e:
         conn.rollback()
         return jsonify({"error": f"Note generation failed: {str(e)}"}), 500
     finally:
-        # FIX: always close cursor and connection
         cursor.close()
         conn.close()
 
@@ -447,6 +441,7 @@ def ai_generate_note():
 # ── AI QUIZ GENERATION ────────────────────────────────────────────────
 @app.route("/ai/generate-quiz", methods=["POST"])
 @jwt_required()
+@limiter.limit("10 per minute")
 def ai_generate_quiz():
     import json
     user_id = int(get_jwt_identity())
@@ -473,54 +468,17 @@ def ai_generate_quiz():
             subject_name = subj["name"]
             topic_name   = top["name"]
         elif subject_name and topic_name:
-            subject_name = subject_name.strip()
-            topic_name   = topic_name.strip()
-            if len(subject_name) < 3 or len(topic_name) < 3:
-                return jsonify({"error": "Subject and topic names must each be at least 3 characters"}), 400
             subject_id = None
             topic_id   = None
         else:
             return jsonify({"error": "Provide either subject_id + topic_id or subject_name + topic_name"}), 400
 
-        # ── Cache check (skip AI call on repeat requests) ─────────────────
-        cache_key    = quiz_cache.make_key(subject_name, topic_name, difficulty, num_questions)
-        quiz_content = quiz_cache.get(cache_key)
+        quiz_raw = generate_quiz(subject_name, topic_name, difficulty, num_questions)
 
-        if quiz_content is not None:
-            logger.info(
-                "Quiz served from cache: subject=%s topic=%s difficulty=%s",
-                subject_name, topic_name, difficulty,
-            )
-        else:
-            quiz_raw = generate_quiz(subject_name, topic_name, difficulty, num_questions)
-
-            try:
-                quiz_content = json.loads(quiz_raw)
-            except (json.JSONDecodeError, TypeError):
-                logger.error(
-                    "Quiz JSON parse failed for subject=%s topic=%s — raw snippet: %s",
-                    subject_name, topic_name, str(quiz_raw)[:200],
-                )
-                return jsonify({"error": "AI returned invalid JSON format"}), 500
-
-            # Strict structural validation — ensures frontend never receives a broken quiz
-            valid, validation_error = validate_quiz_structure(quiz_content)
-            if not valid:
-                logger.error(
-                    "Quiz structure invalid for subject=%s topic=%s — reason: %s",
-                    subject_name, topic_name, validation_error,
-                )
-                return jsonify({
-                    "error": f"AI returned a malformed quiz: {validation_error}"
-                }), 500
-
-            # Cache the validated quiz dict so repeat requests skip the AI call
-            quiz_cache.set(cache_key, quiz_content)
-
-            logger.info(
-                "Quiz generated: subject=%s topic=%s difficulty=%s questions=%d",
-                subject_name, topic_name, difficulty, len(quiz_content.get("questions", [])),
-            )
+        try:
+            quiz_content = json.loads(quiz_raw)
+        except (json.JSONDecodeError, TypeError):
+            return jsonify({"error": "AI returned invalid JSON format"}), 500
 
         quiz_content_json = json.dumps(quiz_content)
 
@@ -550,13 +508,12 @@ def ai_generate_quiz():
 # ── AI TOPIC GENERATION ───────────────────────────────────────────────
 @app.route("/ai/generate-topics", methods=["POST"])
 @jwt_required()
+@limiter.limit("10 per minute")
 def ai_generate_topics():
     data         = request.json or {}
     subject_name = data.get("subject_name", "").strip()
     if not subject_name:
         return jsonify({"error": "Subject name required"}), 400
-    if len(subject_name) < 3:
-        return jsonify({"error": "Subject name must be at least 3 characters"}), 400
     try:
         topics_list = generate_topics(subject_name)
         return jsonify({"message": "Topics generated successfully", "topics": topics_list}), 200
@@ -605,7 +562,6 @@ def delete_note(note_id):
             (note_id, user_id)
         )
         conn.commit()
-        # FIX: check if anything was actually deleted (was always returning 200 before)
         if cursor.rowcount == 0:
             return jsonify({"error": "Note not found or unauthorized"}), 404
     finally:
@@ -669,13 +625,11 @@ def delete_quiz(quiz_id):
 @app.route("/quizzes/<int:quiz_id>/submit", methods=["POST"])
 @jwt_required()
 def submit_quiz(quiz_id):
-    import json as _json
     user_id = int(get_jwt_identity())
     data    = request.json or {}
 
-    score        = data.get("score")
-    total_marks  = data.get("total_marks")
-    user_answers = data.get("user_answers")   # NEW — optional list[int|None]
+    score       = data.get("score")
+    total_marks = data.get("total_marks")
 
     if score is None or total_marks is None:
         return jsonify({"error": "Score and total marks required"}), 400
@@ -687,16 +641,10 @@ def submit_quiz(quiz_id):
     conn = require_conn()
     avg_score    = 0.0
     progress_pct = 0.0
-    evaluation   = None        # populated when user_answers are provided
-    is_weak      = None        # populated when percentage can be computed
 
     try:
-        # ── Fetch quiz (now also retrieves content for server-side eval) ───
         cur = dict_cursor(conn)
-        cur.execute(
-            "SELECT subject_id, topic_id, content FROM quizzes WHERE id = %s",
-            (quiz_id,)
-        )
+        cur.execute("SELECT subject_id, topic_id FROM quizzes WHERE id = %s", (quiz_id,))
         quiz = cur.fetchone()
         cur.close()
 
@@ -706,54 +654,17 @@ def submit_quiz(quiz_id):
         subject_id = quiz["subject_id"]
         topic_id   = quiz["topic_id"]
 
-        # ── Optional server-side evaluation ───────────────────────────────
-        if user_answers is not None and isinstance(user_answers, list):
-            try:
-                quiz_content = _json.loads(quiz["content"]) if isinstance(quiz["content"], str) else quiz["content"]
-                evaluation   = evaluate_quiz(quiz_content, user_answers)
-                # Override the client-reported score with the server-computed one
-                score       = float(evaluation["score"])
-                total_marks = float(evaluation["total"])
-                is_weak     = evaluation["is_weak"]
-                logger.info(
-                    "Server-side eval: quiz_id=%s user_id=%s score=%s/%s (%.1f%%) is_weak=%s",
-                    quiz_id, user_id, int(score), int(total_marks), evaluation["percentage"], is_weak,
-                )
-            except Exception as eval_err:
-                # Evaluation failure is non-fatal — fall back to client score
-                logger.warning(
-                    "Server-side evaluation failed for quiz_id=%s: %s — using client score",
-                    quiz_id, eval_err,
-                )
-                evaluation = None
-        else:
-            # Derive is_weak from client-provided score even without answer list
-            percentage = compute_percentage(score, total_marks)
-            is_weak    = detect_weak_topic(percentage)
-
-        # ── Record attempt ────────────────────────────────────────────────
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO quiz_attempts (user_id, subject_id, topic_id, quiz_id, score, total_marks, is_weak)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (user_id, subject_id, topic_id, quiz_id, float(score), float(total_marks), is_weak))
+            INSERT INTO quiz_attempts (user_id, subject_id, topic_id, quiz_id, score, total_marks)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (user_id, subject_id, topic_id, quiz_id, float(score), float(total_marks)))
         conn.commit()
         cur.close()
 
         if subject_id is None:
-            response_body = {"message": "Custom quiz submitted (no progress tracking)"}
-            if evaluation:
-                response_body["evaluation"] = {
-                    "score":      evaluation["score"],
-                    "total":      evaluation["total"],
-                    "percentage": evaluation["percentage"],
-                    "is_weak":    evaluation["is_weak"],
-                }
-            if is_weak is not None:
-                response_body["is_weak"] = is_weak
-            return jsonify(response_body), 200
+            return jsonify({"message": "Custom quiz submitted (no progress tracking)"}), 200
 
-        # ── Update subject-level progress ─────────────────────────────────
         cur = conn.cursor()
         cur.execute("""
             SELECT AVG(score) FROM quiz_attempts
@@ -812,43 +723,17 @@ def submit_quiz(quiz_id):
         cur.close()
 
     except Exception as e:
-        logger.error("submit_quiz error for user_id=%s quiz_id=%s: %s", user_id, quiz_id, e)
+        print("submit_quiz error:", e)
         conn.rollback()
         conn.close()
         return jsonify({"error": f"Submission failed: {str(e)}"}), 500
 
     conn.close()
-
-    # Resolve topic/subject name for feedback context
-    # (topic_id/subject_id already held in outer scope from the quiz fetch)
-    pct = evaluation["percentage"] if evaluation else compute_percentage(score, total_marks)
-
-    # ── Build response — all existing fields kept, new ones appended ──────
-    response_body = {
-        # existing fields (unchanged — frontend depends on these)
+    return jsonify({
         "message":             "Quiz submitted successfully",
         "average_score":       round(avg_score, 2),
         "progress_percentage": progress_pct,
-        # phase-2 fields
-        "is_weak":             is_weak,
-        "percentage":          pct,
-        "recommended_retry":   bool(is_weak),
-        # phase-3 NEW personalization fields
-        "performance_level":   classify_performance(pct),
-        "recommended_difficulty": recommend_difficulty(pct),
-        "feedback":            generate_smart_feedback(pct),
-    }
-    if evaluation:
-        response_body["evaluation"] = {
-            "score":             evaluation["score"],
-            "total":             evaluation["total"],
-            "percentage":        evaluation["percentage"],
-            "is_weak":           evaluation["is_weak"],
-            "correct_indices":   evaluation["correct_indices"],
-            "incorrect_indices": evaluation["incorrect_indices"],
-            "unanswered":        evaluation["unanswered"],
-        }
-    return jsonify(response_body), 200
+    }), 200
 
 
 # =========================
@@ -910,39 +795,6 @@ def get_personal_analytics():
             "subject": r["subject"],
         } for r in reversed(recent_raw)]
 
-        # ── Per-topic performance (for weak/strong detection) ─────────────
-        cur = dict_cursor(conn)
-        cur.execute("""
-            SELECT t.name  AS topic_name,
-                   s.name  AS subject_name,
-                   ROUND(CAST(AVG(qa.score / qa.total_marks * 100) AS NUMERIC), 1) AS avg_pct,
-                   COUNT(*) AS attempts
-            FROM quiz_attempts qa
-            JOIN topics   t ON qa.topic_id   = t.id
-            JOIN subjects s ON qa.subject_id = s.id
-            WHERE qa.user_id = %s AND qa.topic_id IS NOT NULL AND qa.total_marks > 0
-            GROUP BY qa.topic_id, t.name, s.name
-            ORDER BY avg_pct ASC
-        """, (user_id,))
-        topic_perf = cur.fetchall()
-        cur.close()
-
-        weak_topics   = []
-        strong_topics = []
-        for row in topic_perf:
-            pct = float(row["avg_pct"])
-            entry = {
-                "topic":    row["topic_name"],
-                "subject":  row["subject_name"],
-                "avg":      pct,
-                "attempts": row["attempts"],
-            }
-            if pct < WEAK_THRESHOLD:
-                weak_topics.append(entry)
-            elif pct >= STRONG_THRESHOLD:
-                strong_topics.append(entry)
-
-        # ── Subject-level performance ──────────────────────────────────────
         cur = dict_cursor(conn)
         cur.execute("""
             SELECT s.name AS subject_name,
@@ -956,7 +808,6 @@ def get_personal_analytics():
         subject_perf = cur.fetchall()
         cur.close()
 
-        # ── Difficulty breakdown ───────────────────────────────────────────
         cur = conn.cursor()
         cur.execute("""
             SELECT
@@ -969,67 +820,13 @@ def get_personal_analytics():
         diff_row = cur.fetchone()
         cur.close()
 
-        # ── Improvement trend ──────────────────────────────────────────────
-        improvement_trend = "neutral"
-        if len(trend) >= 4:
-            half      = len(trend) // 2
-            older_avg = sum(t["score"] for t in trend[:half]) / half
-            newer_avg = sum(t["score"] for t in trend[half:]) / (len(trend) - half)
-            if newer_avg - older_avg >= 5:
-                improvement_trend = "improving"
-            elif older_avg - newer_avg >= 5:
-                improvement_trend = "declining"
-
-        # ── Recommended topics (weak topics user should retry) ─────────────
-        recommended_topics = [
-            {
-                "topic":   w["topic"],
-                "subject": w["subject"],
-                "avg":     w["avg"],
-                "reason":  f"Score {w['avg']}% is below the {int(WEAK_THRESHOLD)}% threshold — retry recommended",
-            }
-            for w in weak_topics[:5]
-        ]
-
-        # ── Learning streaks (computed from attempt dates — no new table) ──
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT attempt_date FROM quiz_attempts WHERE user_id = %s AND attempt_date IS NOT NULL",
-            (user_id,)
-        )
-        raw_dates   = [row[0] for row in cur.fetchall()]
-        cur.close()
-        streak_data = compute_streaks(raw_dates)
-
-        # ── Personalization layer ──────────────────────────────────────────
-        study_plan             = generate_study_plan(weak_topics, improvement_trend, [
-            {"subject": r["subject_name"], "avg": float(r["avg_pct"]), "attempts": r["attempts"]}
-            for r in subject_perf
-        ])
-        recommended_difficulty = recommend_difficulty(overall_avg)
-        performance_level      = classify_performance(overall_avg)
-        insights               = generate_insights(
-            trend_data        = trend,
-            subject_perf      = [
-                {"subject": r["subject_name"], "avg": float(r["avg_pct"]), "attempts": r["attempts"]}
-                for r in subject_perf
-            ],
-            weak_topics       = weak_topics,
-            strong_topics     = strong_topics,
-            total_attempts    = total_attempts,
-            improvement_trend = improvement_trend,
-            current_streak    = streak_data["current"],
-            overall_avg       = overall_avg,
-        )
-
         return jsonify({
-            # ── Phase-1 existing fields (UNCHANGED) ───────────────────────
-            "total_attempts":      total_attempts,
-            "overall_avg":         overall_avg,
-            "total_notes":         total_notes,
-            "best_subject":        best["subject_name"] if best else None,
-            "best_subject_score":  round(float(best["avg_pct"]), 1) if best else 0,
-            "trend":               trend,
+            "total_attempts":    total_attempts,
+            "overall_avg":       overall_avg,
+            "total_notes":       total_notes,
+            "best_subject":      best["subject_name"] if best else None,
+            "best_subject_score": round(float(best["avg_pct"]), 1) if best else 0,
+            "trend":             trend,
             "subject_performance": [
                 {"subject": r["subject_name"], "avg": float(r["avg_pct"]), "attempts": r["attempts"]}
                 for r in subject_perf
@@ -1039,22 +836,12 @@ def get_personal_analytics():
                 "average": int(diff_row[1] or 0),
                 "weak":    int(diff_row[2] or 0),
             },
-            # ── Phase-2 fields (additive) ──────────────────────────────────
-            "weak_topics":         weak_topics,
-            "strong_topics":       strong_topics,
-            "improvement_trend":   improvement_trend,
-            "recommended_topics":  recommended_topics,
-            # ── Phase-3 NEW personalization fields ─────────────────────────
-            "study_plan":              study_plan,
-            "recommended_difficulty":  recommended_difficulty,
-            "performance_level":       performance_level,
-            "insights":                insights,
-            "learning_streak":         streak_data,
         }), 200
 
     except Exception as e:
-        logger.error("analytics error for user_id=%s: %s", user_id, e)
+        print("analytics error:", e)
         conn.rollback()
+        conn.close()
         return jsonify({"error": str(e)}), 500
 
     finally:
@@ -1129,8 +916,9 @@ def get_personal_dashboard():
         }), 200
 
     except Exception as e:
-        logger.error("personal dashboard error for user_id=%s: %s", user_id, e)
+        print("personal dashboard error:", e)
         conn.rollback()
+        conn.close()
         return jsonify({"error": str(e)}), 500
 
     finally:
@@ -1142,6 +930,7 @@ def get_personal_dashboard():
 # =========================
 @app.route("/ai/fyp-guide", methods=["POST"])
 @jwt_required()
+@limiter.limit("5 per minute")
 def ai_fyp_guide():
     from ai import generate_fyp_guide
     data      = request.json or {}
@@ -1156,7 +945,7 @@ def ai_fyp_guide():
         guide = generate_fyp_guide(domain, interest, team_size)
         return jsonify({"guide": guide}), 200
     except Exception as e:
-        logger.error("FYP guide error: %s", e)
+        print("FYP guide error:", e)
         return jsonify({"error": str(e)}), 500
 
 
@@ -1165,6 +954,7 @@ def ai_fyp_guide():
 # =========================
 @app.route("/ai/resume/generate", methods=["POST"])
 @jwt_required()
+@limiter.limit("5 per minute")
 def ai_resume_generate():
     from ai import generate_resume_latex
     data = request.json or {}
@@ -1174,12 +964,13 @@ def ai_resume_generate():
         latex = generate_resume_latex(data)
         return jsonify({"latex": latex}), 200
     except Exception as e:
-        logger.error("Resume generate error: %s", e)
+        print("Resume generate error:", e)
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/ai/resume/improve", methods=["POST"])
 @jwt_required()
+@limiter.limit("5 per minute")
 def ai_resume_improve():
     from ai import improve_resume_latex
     data        = request.json or {}
@@ -1191,12 +982,13 @@ def ai_resume_improve():
         latex = improve_resume_latex(resume_text, target_role)
         return jsonify({"latex": latex}), 200
     except Exception as e:
-        logger.error("Resume improve error: %s", e)
+        print("Resume improve error:", e)
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/ai/resume/compile", methods=["POST"])
 @jwt_required()
+@limiter.limit("5 per minute")
 def ai_resume_compile():
     import subprocess, tempfile, base64, os as _os
     data       = request.json or {}
@@ -1214,7 +1006,7 @@ def ai_resume_compile():
 
     if not has_pdflatex:
         return jsonify({
-            "error":        "pdflatex not installed",
+            "error":        "pdflatex not available on this server",
             "latex":        latex_code,
             "overleaf_url": "https://www.overleaf.com/latex/templates",
         }), 422
@@ -1242,7 +1034,7 @@ def ai_resume_compile():
             return jsonify({"pdf_base64": pdf_b64}), 200
 
     except Exception as e:
-        logger.error("LaTeX compile error: %s", e)
+        print("LaTeX compile error:", e)
         return jsonify({"error": str(e), "latex": latex_code}), 500
 
 
@@ -1251,7 +1043,9 @@ def ai_resume_compile():
 # =========================
 @app.route("/ai/chat", methods=["POST"])
 @jwt_required()
+@limiter.limit("20 per minute")
 def ai_chat():
+    user_id      = int(get_jwt_identity())
     data         = request.json or {}
     user_message = data.get("message", "").strip()
     subject      = data.get("subject", "General MCA")
@@ -1278,18 +1072,59 @@ def ai_chat():
         response = requests.post(
             GROQ_URL, headers=HEADERS,
             json={"model": "llama-3.1-8b-instant", "messages": messages, "temperature": 0.7, "max_tokens": 1024},
-            timeout=30,
         )
 
         if response.status_code != 200:
             return jsonify({"error": "AI service unavailable"}), 500
 
         reply = response.json()["choices"][0]["message"]["content"]
+
+        # Persist this exchange to chat_history for future reference
+        try:
+            conn = get_db_connection()
+            if conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO chat_history (user_id, subject, question, answer) VALUES (%s, %s, %s, %s)",
+                    (user_id, subject, user_message, reply)
+                )
+                conn.commit()
+                cur.close()
+                conn.close()
+        except Exception as db_err:
+            print("Chat history save warning:", db_err)
+            # Non-fatal — chat still works even if history save fails
+
         return jsonify({"reply": reply}), 200
 
     except Exception as e:
-        logger.error("Chat error: %s", e)
+        print("Chat error:", e)
         return jsonify({"error": "Chat failed"}), 500
+
+
+# =========================
+# CHAT HISTORY
+# =========================
+@app.route("/chat/history", methods=["GET"])
+@jwt_required()
+def get_chat_history():
+    """Returns the last 50 AI tutor exchanges for the current user."""
+    user_id = int(get_jwt_identity())
+    conn    = require_conn()
+    cursor  = dict_cursor(conn)
+    try:
+        cursor.execute("""
+            SELECT id, subject, question, answer, created_at
+            FROM chat_history
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            LIMIT 50
+        """, (user_id,))
+        rows = cursor.fetchall()
+    finally:
+        cursor.close()
+        conn.close()
+    return jsonify([dict(r) for r in rows]), 200
 
 
 # ── Init & run ────────────────────────────────────────────────────────
