@@ -19,6 +19,11 @@ import psycopg2.extras
 
 from db import get_db_connection
 from ai import generate_note, generate_quiz, generate_topics, GROQ_URL, HEADERS
+from helpers import (
+    compute_percentage,
+    generate_smart_feedback,
+    compute_streaks,
+)
 import requests
 
 
@@ -729,10 +734,20 @@ def submit_quiz(quiz_id):
         return jsonify({"error": f"Submission failed: {str(e)}"}), 500
 
     conn.close()
+
+    # Use helpers to generate smart feedback based on this submission score
+    percentage = compute_percentage(float(score), float(total_marks))
+    feedback   = generate_smart_feedback(percentage)
+
     return jsonify({
         "message":             "Quiz submitted successfully",
         "average_score":       round(avg_score, 2),
         "progress_percentage": progress_pct,
+        "percentage":          percentage,
+        "feedback":            feedback["message"],
+        "action":              feedback["action"],
+        "performance_level":   feedback["performance_level"],
+        "next_difficulty":     feedback["next_difficulty"],
     }), 200
 
 

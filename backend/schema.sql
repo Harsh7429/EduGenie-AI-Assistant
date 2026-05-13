@@ -1,6 +1,6 @@
 -- ============================================================
 -- EduGenie PostgreSQL Schema
--- Version: 2.0 (Final Year Project)
+-- Version: 2.1 (Final Year Project)
 -- Database: PostgreSQL 15+
 -- Usage: psql -U postgres -d edugenie_db -f schema.sql
 -- ============================================================
@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
     quiz_id      INT,
     score        FLOAT NOT NULL,
     total_marks  FLOAT NOT NULL,
+    answers      JSONB DEFAULT NULL,
     attempt_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -106,6 +107,20 @@ CREATE TABLE IF NOT EXISTS user_progress (
     average_score       FLOAT DEFAULT 0,
     last_updated        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_user_subject UNIQUE (user_id, subject_id)
+);
+
+
+-- Topic-level progress (granular tracking per topic per user)
+CREATE TABLE IF NOT EXISTS topic_progress (
+    id           SERIAL PRIMARY KEY,
+    user_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    subject_id   INT NOT NULL,
+    topic_id     INT NOT NULL,
+    avg_score    DOUBLE PRECISION NOT NULL DEFAULT 0,
+    attempts     INT NOT NULL DEFAULT 0,
+    is_weak      BOOLEAN DEFAULT FALSE,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_user_subject_topic UNIQUE (user_id, subject_id, topic_id)
 );
 
 

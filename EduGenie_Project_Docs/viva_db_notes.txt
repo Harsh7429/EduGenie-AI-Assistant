@@ -1,9 +1,13 @@
-“The database is designed using MySQL and follows normalization principles.”
+"The database is designed using PostgreSQL and follows normalization principles up to 3NF."
 
-“Foreign keys are used to maintain relationships between users, subjects, and academic content.”
+"Foreign keys are used to maintain referential integrity between users, subjects, units, topics, and academic content."
 
-“Passwords are stored in hashed form for security.”
+"Passwords are stored in bcrypt-hashed form — never in plaintext — for security."
 
-“AI-generated notes and chat history are stored for revision and reduced recomputation.”
+"AI-generated notes and chat history are stored in the database for revision and to reduce redundant AI API calls."
 
-“Cascade delete is used to maintain data consistency.”
+"CASCADE DELETE is used across all child tables to maintain data consistency when a parent record is removed."
+
+"The schema uses SERIAL (auto-incrementing integers) as primary keys, standard PostgreSQL syntax."
+
+"The database is hosted on Neon (serverless PostgreSQL) and accessed via psycopg2 from the Flask backend."
