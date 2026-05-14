@@ -1,258 +1,238 @@
 # 📘 PROJECT DESCRIPTION
 
-## **AI-Powered Study Assistant for MCA Students**
+## EduGenie — AI-Powered Study Companion for MCA Students
 
 ---
 
-## 1️⃣ Introduction
+## 1. Introduction
 
-In today’s academic environment, MCA students face difficulty in understanding complex technical subjects and preparing exam-oriented answers within limited time. Although a large amount of study material is available online, most of it is either too lengthy, too advanced, or not aligned with university examination patterns.
+MCA (Master of Computer Applications) students face the challenge of covering a vast technical syllabus within limited time, with most available study material either too lengthy or not aligned with university examination patterns.
 
-To address this issue, this project proposes an **AI-Powered Study Assistant**, a **web-based application** that helps MCA students learn concepts in a **simple, structured, and exam-focused manner**. The system automatically generates **well-organized answers** based on the selected subject, topic, and marks requirement (5, 10, or 15 marks).
+EduGenie is a full-stack, AI-powered web application built to address this problem. It generates exam-focused study notes and adaptive quizzes, provides a 24/7 AI tutor, and tracks individual student performance — all structured around the official MCA semester-wise syllabus.
 
----
-
-## 2️⃣ Problem Statement
-
-MCA students often face the following problems:
-
-* Difficulty in understanding complex technical concepts
-* Lack of exam-oriented study material
-* Confusion about how much content to write for different mark questions
-* Time-consuming revision before exams
-* Dependency on multiple resources such as books, PDFs, and websites
-
-There is no single platform that provides **simple explanations**, **marks-based answers**, and **quick revision notes** tailored specifically for MCA students.
+The project is deployed live at: https://edu-genie-ai-assistant.vercel.app
 
 ---
 
-## 3️⃣ Proposed Solution
+## 2. Problem Statement
 
-The proposed system is a **web-based AI study assistant** that provides:
+MCA students commonly face:
 
-* Simple and easy-to-understand explanations
-* Structured answers based on exam marks
-* Quick revision summaries
-* A centralized learning platform for MCA subjects
-
-The system uses **intelligent rule-based logic and NLP concepts** to generate academic content automatically, helping students prepare effectively for examinations.
-
----
-
-## 4️⃣ Objectives of the Project
-
-The main objectives of this project are:
-
-1. To develop a web-based study assistant for MCA students
-2. To generate exam-oriented answers based on marks (5/10/15)
-3. To provide simple and structured explanations for complex topics
-4. To reduce exam preparation time for students
-5. To offer a centralized platform for MCA syllabus topics
-6. To demonstrate the integration of AI concepts with web technologies
+- Difficulty understanding complex technical topics (DBMS, OS, CN, Algorithms)
+- Lack of exam-oriented, marks-based study material
+- No single platform for revision, quizzes, and performance tracking
+- Time-consuming preparation across multiple resources
+- No visibility into weak areas or progress over time
 
 ---
 
-## 5️⃣ Scope of the Project
+## 3. Proposed Solution
 
-### ✔ Included Scope
+EduGenie provides a centralised, AI-driven academic platform that offers:
 
-* MCA core subjects (DBMS, CN, OS, etc.)
-* Topic-wise content generation
-* Marks-based answer formatting
-* User authentication system
-* Admin-managed subjects and topics
-* Local deployment (college demo)
-
-### ❌ Excluded Scope
-
-* Mobile application
-* Voice-based interaction
-* Advanced deep learning model training
-* Real-time collaboration
+- Instant AI-generated study notes per topic
+- Adaptive MCQ quizzes with difficulty control and explanations
+- A 24/7 conversational AI tutor for academic queries
+- Performance analytics with score trends, heatmaps, and weak-area detection
+- A structured semester-wise MCA syllabus framework
+- Final Year Project (FYP) guidance and an ATS-optimised resume builder
 
 ---
 
-## 6️⃣ System Overview
+## 4. Objectives
 
-The system is divided into three main parts:
-
-1. **Frontend (User Interface)**
-2. **Backend (Application Logic)**
-3. **AI Content Generation Logic**
-
-The frontend allows students to interact with the system, while the backend processes requests, interacts with the database, and generates responses using AI logic.
-
----
-
-## 7️⃣ System Architecture (Conceptual Description)
-
-The architecture follows a **client-server model**:
-
-1. User interacts with the frontend web interface
-2. Request is sent to the Flask backend
-3. Backend processes the request
-4. AI logic generates appropriate content
-5. Data is retrieved or stored in the database
-6. Generated answer is returned to the frontend
-
-📌 This architecture ensures simplicity, modularity, and ease of maintenance.
+1. Develop a full-stack web application for MCA exam preparation
+2. Integrate a large language model (LLaMA 3 via Groq API) for content generation
+3. Build an adaptive quiz engine with performance tracking
+4. Design a relational PostgreSQL database modelling the MCA academic hierarchy
+5. Implement secure JWT-based user authentication
+6. Deploy the application on cloud infrastructure (Vercel + Render + Neon)
 
 ---
 
-## 8️⃣ Functional Modules
+## 5. System Architecture
 
-### 🔹 1. User Authentication Module
+The application follows a three-tier client-server architecture:
 
-* User registration
-* User login
-* Session management
+```
+Browser (React SPA)
+        ↓ HTTPS / REST API (Axios + JWT)
+Flask Backend (Render — Gunicorn)
+        ↓ psycopg2
+PostgreSQL Database (Neon — Serverless)
+        +
+Groq API (LLaMA 3.1 8B) ← called from Flask
+```
 
----
-
-### 🔹 2. Subject & Topic Management Module
-
-* Display list of MCA subjects
-* Topic selection based on subject
-* Admin can add or modify subjects/topics
-
----
-
-### 🔹 3. AI-Based Answer Generation Module
-
-* Accepts topic and marks input
-* Uses predefined templates and logic
-* Generates structured answers:
-
-  * Definition
-  * Explanation
-  * Key points
-  * Examples (if applicable)
+- Frontend is a Single Page Application (SPA) with client-side routing via React Router
+- All API routes are protected using JWT Bearer tokens
+- AI content is generated server-side via Groq's inference API — the API key is never exposed to the client
+- CORS is configured per-environment to allow only the registered frontend origin
 
 ---
 
-### 🔹 4. Marks-Based Answer Formatting
+## 6. Tech Stack
 
-* 5 marks → short and precise explanation
-* 10 marks → moderate explanation with points
-* 15 marks → detailed explanation with subheadings
+### Frontend
+| Technology       | Purpose                          |
+|------------------|----------------------------------|
+| React 18         | UI framework (component-based)   |
+| React Router 6   | Client-side routing              |
+| Vite 5           | Build tool and dev server        |
+| Tailwind CSS 3   | Utility-first styling            |
+| Axios            | HTTP client with JWT interceptor |
+| React Markdown   | Rendering AI-generated content   |
 
----
+### Backend
+| Technology           | Purpose                          |
+|----------------------|----------------------------------|
+| Flask 3.1            | REST API server                  |
+| Flask-JWT-Extended   | Token-based authentication       |
+| Flask-Limiter        | Rate limiting on AI endpoints    |
+| Flask-CORS           | Cross-origin request handling    |
+| psycopg2-binary      | PostgreSQL database driver       |
+| bcrypt               | Password hashing (salted)        |
+| Groq API (LLaMA 3.1) | AI content and quiz generation   |
+| Gunicorn             | Production WSGI server           |
 
-### 🔹 5. Quick Revision Module
+### Database
+| Technology          | Purpose                          |
+|---------------------|----------------------------------|
+| PostgreSQL 15       | Relational database              |
+| Neon (Serverless)   | Cloud-hosted PostgreSQL          |
 
-* Bullet-point summaries
-* Important keywords
-* One-page revision content
-
----
-
-### 🔹 6. Admin Module
-
-* Manage subjects
-* Manage topics
-* View user activity (basic)
-
----
-
-## 9️⃣ AI and Intelligence Used
-
-The project uses **intelligent rule-based content generation**, which is a form of applied AI.
-
-### AI Concepts Used:
-
-* Natural Language Processing (NLP)
-* Keyword-based content selection
-* Template-based response generation
-* Logic-driven answer structuring
-
-📌 No complex model training is required, making it beginner-friendly and cost-effective.
-
----
-
-## 🔟 Technologies Used
-
-### Frontend:
-
-* HTML
-* CSS
-* JavaScript
-* Bootstrap (optional)
-
-### Backend:
-
-* Python
-* Flask framework
-
-### Database:
-
-* SQLite / MySQL
-
-### Development Tools:
-
-* VS Code
-* Python environment
-* GitHub (optional)
+### Deployment
+| Service   | Purpose              |
+|-----------|----------------------|
+| Vercel    | Frontend hosting     |
+| Render    | Backend hosting      |
+| Neon      | Database hosting     |
 
 ---
 
-## 1️⃣1️⃣ Use Case Example
+## 7. Database Design
 
-A student selects:
+The schema follows a normalised relational hierarchy aligned with the MCA academic structure:
 
-* Subject: DBMS
-* Topic: Normalization
-* Marks: 10
+```
+users
+  └── quiz_attempts  → subject → unit → topic
+  └── notes          → subject → topic
+  └── user_progress  → subject
+  └── topic_progress → subject → topic
+  └── chat_history   → subject
+  └── quizzes        → subject → topic
+semesters → elective_groups → subjects → units → topics
+```
 
-The system generates:
+Key design decisions:
+- All passwords stored as bcrypt hashes — never plaintext
+- CASCADE DELETE on all child tables for referential integrity
+- UNIQUE constraints prevent duplicate progress records per user/subject
+- JSONB column on quiz_attempts stores per-question answers for review mode
+- topic_progress enables granular weak-area detection per topic
 
-* Definition of normalization
-* Explanation of purpose
-* Types (1NF, 2NF, 3NF)
-* Advantages
-
-This content is displayed instantly on the web interface.
-
----
-
-## 1️⃣2️⃣ Advantages of the System
-
-* Easy to use
-* Exam-oriented content
-* Time-saving
-* Beginner-friendly
-* Reduces exam stress
-* Centralized learning platform
+Tables: users, semesters, elective_groups, subjects, units, topics, notes,
+        quizzes, quiz_attempts, user_progress, topic_progress, chat_history
 
 ---
 
-## 1️⃣3️⃣ Limitations of the System
+## 8. Functional Modules
 
-* Requires internet connection
-* Generated content may need human verification
-* Limited to predefined subjects and topics
-* Not a replacement for teachers
+### 8.1 User Authentication
+- Signup with bcrypt password hashing + email validation
+- Login returns a signed JWT (expires in 6 hours)
+- All protected routes use @jwt_required() decorator
+- Frontend Axios interceptor auto-attaches the Bearer token
+- 401 responses trigger automatic logout and redirect to /login
+
+### 8.2 AI Study Note Generation
+- User selects subject and topic from the MCA syllabus
+- Flask calls Groq API with an exam-focused prompt
+- Response is saved to the notes table and displayed in Markdown
+- Notes are searchable, copyable, and exportable as PDF (print)
+
+### 8.3 Adaptive Quiz Engine
+- AI generates structured JSON MCQs for the selected topic and difficulty
+- Quiz content stored in PostgreSQL; retrieval via left join
+- On submission: score saved to quiz_attempts, progress recalculated
+- Retry mode replays saved quizzes from history
+- Helpers module generates performance feedback (strong/average/weak)
+
+### 8.4 AI Chat Tutor
+- Multi-turn conversational interface with subject context
+- Last 6 messages sent as history for conversational continuity
+- Every Q&A exchange saved to chat_history table
+- Rate limited to 20 requests/minute
+
+### 8.5 Performance Analytics
+- Score trend chart (SVG, last 10 attempts)
+- 14-week activity heatmap
+- Subject-wise performance ranking
+- Strong/Average/Weak attempt breakdown
+- All metrics computed from live quiz_attempts data
+
+### 8.6 FYP Guide
+- User inputs domain, interest, and team size
+- AI generates a structured Final Year Project roadmap
+- Output includes title suggestions, tech stack, timeline, and risks
+
+### 8.7 Resume Builder
+- Multi-step form collects education, skills, projects, experience
+- AI generates an ATS-optimised LaTeX resume
+- User can download .tex source or open directly in Overleaf
+- Existing resume improvement mode also supported
 
 ---
 
-## 1️⃣4️⃣ Future Enhancements
+## 9. Security Implementation
 
-* Mobile application
-* Voice-based learning assistant
-* Personalized learning paths
-* AI-based quiz generation
-* Teacher feedback integration
-
----
-
-## 1️⃣5️⃣ Conclusion
-
-The **AI-Powered Study Assistant for MCA Students** is a practical, innovative, and academically valuable project that effectively combines **web development and artificial intelligence**. It addresses real problems faced by students during exam preparation and provides a scalable platform for future educational enhancements. The system is easy to implement, cost-effective, and suitable for beginner-level MCA students.
-
----
-
-## 🔚 One-Line Final Summary (For Viva)
-
-> “This project is a web-based AI study assistant that helps MCA students prepare exam-oriented answers and revision notes in simple language using intelligent content generation techniques.”
+| Concern             | Implementation                              |
+|---------------------|---------------------------------------------|
+| Password storage    | bcrypt with random salt per user            |
+| Authentication      | JWT (HS256), 6-hour expiry                  |
+| Authorisation       | @jwt_required() on all data endpoints       |
+| Ownership checks    | DELETE queries include AND user_id = %s     |
+| API abuse           | Flask-Limiter — 10/min on AI routes         |
+| Input validation    | Email regex validation on signup            |
+| Secrets management  | All keys via environment variables (.env)   |
+| CORS                | Restricted to registered frontend origin    |
 
 ---
 
+## 10. Deployment
+
+- Frontend built with `npm run build`, deployed via Vercel (automatic on git push)
+- Backend served by Gunicorn on Render (Web Service, free tier)
+- Database hosted on Neon (serverless PostgreSQL, auto-sleep on inactivity)
+- Environment variables configured per-service on Render and Vercel dashboards
+- CORS configured via FRONTEND_URL environment variable
+
+---
+
+## 11. Limitations
+
+- AI accuracy depends on LLaMA 3.1 8B model quality; critical content should be verified
+- LaTeX compilation requires Overleaf (pdflatex not available on Render free tier)
+- Neon database auto-sleeps after inactivity; first request on free tier may be slow
+- No offline support or PWA functionality
+- No real-time collaborative features
+
+---
+
+## 12. Future Enhancements
+
+- Mobile application (React Native)
+- Spaced repetition flashcard system
+- Teacher/admin role with class management
+- Voice-based AI tutor
+- Collaborative study rooms
+- Offline mode via service workers
+
+---
+
+## 13. One-Line Summary (For Viva)
+
+"EduGenie is a full-stack AI-powered study companion for MCA students that integrates
+LLM-based note and quiz generation, a conversational AI tutor, and a real-time
+performance analytics system — built on React, Flask, PostgreSQL, and the Groq API."

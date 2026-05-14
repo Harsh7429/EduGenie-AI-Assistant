@@ -1,41 +1,238 @@
-Database Name
+# DATABASE DESIGN — EduGenie
+# Database: PostgreSQL 15 (hosted on Neon — Serverless PostgreSQL)
+# Driver: psycopg2-binary
+# Schema file: backend/schema.sql
 
-edugenie_db
+---
 
-Description
+## 1. Overview
 
-The EduGenie system uses a relational MySQL database to store user information, syllabus structure, AI-generated academic content, chat history, and resume feedback. The database follows normalization principles and enforces data integrity using primary and foreign keys.
+The EduGenie system uses a relational PostgreSQL database. The schema is
+designed around the MCA academic hierarchy — semesters contain subjects,
+subjects contain units, units contain topics — and all user-generated
+content (notes, quizzes, progress) is linked to this hierarchy.
 
-Tables Overview
+The database is normalised to 3NF. Foreign keys with CASCADE DELETE are
+used throughout to maintain referential integrity.
 
-users
-Stores student authentication and identity details. Passwords are stored in encrypted (hashed) form for security.
+---
 
-subjects
-Stores MCA subjects such as OS, CN, DBMS, and OOP. Each subject is unique.
+## 2. Table List
 
-topics
-Stores topics under each subject. Implements a one-to-many relationship between subjects and topics.
+  1. users
+  2. semesters
+  3. elective_groups
+  4. subjects
+  5. units
+  6. topics
+  7. notes
+  8. quizzes
+  9. quiz_attempts
+ 10. user_progress
+ 11. topic_progress
+ 12. chat_history
 
-notes
-Stores AI-generated, exam-oriented notes linked to users, subjects, and topics for revision and caching.
+---
 
-chat_history
-Stores academic questions and AI responses, enabling revision and context-aware learning.
+## 3. Table Definitions
 
-resume_feedback
-Stores AI-generated resume and career guidance based on user role preferences.
+---
 
-Database Concepts Used
+### 3.1 users
+Stores registered user accounts.
 
-Primary Keys
+  id          SERIAL PRIMARY KEY
+  name        VARCHAR(100) NOT NULL
+  email       VARCHAR(100) NOT NULL UNIQUE
+  password    VARCHAR(255) NOT NULL          -- bcrypt hash, never plaintext
+  created_at  TIMESTAMP DEFAULT NOW()
 
-Foreign Keys
+---
 
-One-to-Many Relationships
+### 3.2 semesters
+Stores the MCA semester structure (Semester 1 through 4).
 
-Normalization
+  id    SERIAL PRIMARY KEY
+  name  VARCHAR(50) NOT NULL UNIQUE
 
-Referential Integrity
+---
 
-SQL Joins
+### 3.3 elective_groups
+Groups elective subject choices per semester.
+
+  id           SERIAL PRIMARY KEY
+  name         VARCHAR(100) NOT NULL
+  semester_id  INT → semesters(id) ON DELETE CASCADE
+
+---
+
+### 3.4 subjects
+Core and elective subjects, linked to semesters.
+
+  id              SERIAL PRIMARY KEY
+  name            VARCHAR(100) NOT NULL
+  code            VARCHAR(20)
+  semester_id     INT → semesters(id) ON DELETE SET NULL
+  type            VARCHAR(20) DEFAULT 'core'   -- 'core' or 'elective'
+  elective_group  INT → elective_groups(id) ON DELETE SET NULL
+  created_at      TIMESTAMP DEFAULT NOW()
+
+---
+
+### 3.5 units
+Each subject is divided into units (chapters).
+
+  id          SERIAL PRIMARY KEY
+  subject_id  INT NOT NULL → subjects(id) ON DELETE CASCADE
+  name        VARCHAR(150) NOT NULL
+  created_at  TIMESTAMP DEFAULT NOW()
+
+---
+
+### 3.6 topics
+Each unit contains multiple topics (the leaf level of the hierarchy).
+
+  id          SERIAL PRIMARY KEY
+  unit_id     INT → units(id) ON DELETE CASCADE
+  subject_id  INT → subjects(id) ON DELETE CASCADE
+  name        VARCHAR(150) NOT NULL
+  created_at  TIMESTAMP DEFAULT NOW()
+
+---
+
+### 3.7 notes
+AI-generated study notes saved per user per topic.
+
+  id          SERIAL PRIMARY KEY
+  user_id     INT NOT NULL → users(id) ON DELETE CASCADE
+  subject_id  INT NOT NULL → subjects(id) ON DELETE CASCADE
+  topic_id    INT → topics(id) ON DELETE SET NULL
+  content     TEXT NOT NULL
+  created_at  TIMESTAMP DEFAULT NOW()
+
+---
+
+### 3.8 quizzes
+AI-generated MCQ quiz sets saved per user.
+Content stored as JSON string (array of question objects).
+
+  id          SERIAL PRIMARY KEY
+  user_id     INT NOT NULL → users(id) ON DELETE CASCADE
+  subject_id  INT → subjects(id) ON DELETE SET NULL
+  topic_id    INT → topics(id) ON DELETE SET NULL
+  content     TEXT NOT NULL    -- JSON array of MCQ objects
+  created_at  TIMESTAMP DEFAULT NOW()
+
+---
+
+### 3.9 quiz_attempts
+Every quiz submission is recorded here. This is the primary source
+for all analytics, progress calculations, and trend charts.
+
+  id            SERIAL PRIMARY KEY
+  user_id       INT NOT NULL → users(id) ON DELETE CASCADE
+  subject_id    INT
+  topic_id      INT
+  quiz_id       INT
+  score         FLOAT NOT NULL
+  total_marks   FLOAT NOT NULL
+  answers       JSONB DEFAULT NULL    -- per-question user answers for review mode
+  attempt_date  TIMESTAMP DEFAULT NOW()
+
+---
+
+### 3.10 user_progress
+Aggregated progress per user per subject. Updated after every quiz submission.
+
+  id                    SERIAL PRIMARY KEY
+  user_id               INT NOT NULL → users(id) ON DELETE CASCADE
+  subject_id            INT NOT NULL → subjects(id) ON DELETE CASCADE
+  progress_percentage   FLOAT DEFAULT 0    -- distinct topics attempted / total topics
+  average_score         FLOAT DEFAULT 0    -- AVG(score) across all attempts
+  last_updated          TIMESTAMP DEFAULT NOW()
+
+  CONSTRAINT unique_user_subject UNIQUE (user_id, subject_id)
+
+---
+
+### 3.11 topic_progress
+Granular performance tracking at the topic level. Used for weak-area
+detection and study plan generation.
+
+  id            SERIAL PRIMARY KEY
+  user_id       INT NOT NULL → users(id) ON DELETE CASCADE
+  subject_id    INT NOT NULL
+  topic_id      INT NOT NULL
+  avg_score     DOUBLE PRECISION DEFAULT 0
+  attempts      INT DEFAULT 0
+  is_weak       BOOLEAN DEFAULT FALSE
+  last_updated  TIMESTAMP DEFAULT NOW()
+
+  CONSTRAINT unique_user_subject_topic UNIQUE (user_id, subject_id, topic_id)
+
+---
+
+### 3.12 chat_history
+Every AI tutor exchange is saved here. Used for conversation recall
+and future revision features.
+
+  id          SERIAL PRIMARY KEY
+  user_id     INT NOT NULL → users(id) ON DELETE CASCADE
+  subject     VARCHAR(100)
+  question    TEXT NOT NULL
+  answer      TEXT NOT NULL
+  created_at  TIMESTAMP DEFAULT NOW()
+
+---
+
+## 4. Key Design Decisions
+
+### 4.1 Password Security
+Passwords are hashed using bcrypt with a per-user random salt before
+storage. The plaintext password is never written to the database.
+
+### 4.2 CASCADE DELETE
+All child tables use ON DELETE CASCADE so that deleting a user removes
+all their notes, quizzes, attempts, progress, and chat history — no
+orphaned rows.
+
+### 4.3 Progress Calculation
+progress_percentage in user_progress is computed as:
+  (COUNT DISTINCT topic_id from quiz_attempts WHERE user_id AND subject_id)
+  divided by
+  (COUNT topics WHERE unit.subject_id = subject_id)
+  × 100
+
+### 4.4 JSONB for Answers
+quiz_attempts.answers uses JSONB (binary JSON) to store the user's
+per-question responses. This enables the quiz Review mode without
+requiring a separate answers table.
+
+### 4.5 Weak Topic Detection
+topic_progress.is_weak is set TRUE when avg_score < 50 after 2+
+attempts. This feeds into the study plan and analytics views.
+
+---
+
+## 5. Entity Relationship Summary
+
+  users ──< notes        >── subjects ──< units ──< topics
+        ──< quizzes
+        ──< quiz_attempts
+        ──< user_progress
+        ──< topic_progress
+        ──< chat_history
+
+  semesters ──< elective_groups ──< subjects
+  semesters ──< subjects (direct for core)
+
+---
+
+## 6. Connection Details (Development)
+
+  Host:     localhost  (Production: Neon serverless endpoint)
+  Port:     5432
+  Database: edugenie_db
+  User:     postgres
+  Driver:   psycopg2-binary
+  Pooling:  New connection per request (get_db_connection() in db.py)
