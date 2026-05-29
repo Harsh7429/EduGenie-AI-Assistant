@@ -15,7 +15,7 @@
 
 <br/>
 
-[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-edu--genie--ai--assistant.vercel.app-EF9F27?style=for-the-badge&labelColor=0d0d12)](https://edu-genie-ai-assistant.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-edu--genie--ai--assistant.vercel.app-EF9F27?style=for-the-badge&labelColor=0d0d12)](https://edu-genie-ai-assistant.vercel.app/login)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=white&labelColor=20232a)](https://react.dev)
 [![Flask](https://img.shields.io/badge/Flask-3.1-000000?style=for-the-badge&logo=flask&logoColor=white&labelColor=111)](https://flask.palletsprojects.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-336791?style=for-the-badge&logo=postgresql&logoColor=white&labelColor=1a1a2e)](https://postgresql.org)
@@ -353,7 +353,7 @@ Python Programming              Problem Solving Using C
 
 ## 📸 Demo
 
-**🔗 Live:** [edu-genie-ai-assistant.vercel.app](https://edu-genie-ai-assistant.vercel.app)
+**🔗 Live:** [edu-genie-ai-assistant.vercel.app](https://edu-genie-ai-assistant.vercel.app/login)
 
 **Demo account:**
 ```
@@ -395,6 +395,6 @@ Built with ❤️ for MCA students
 
 <br/>
 
-[![Live Demo](https://img.shields.io/badge/🌐_Try_EduGenie_Live-edu--genie--ai--assistant.vercel.app-EF9F27?style=for-the-badge&labelColor=0d0d12)](https://edu-genie-ai-assistant.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🌐_Try_EduGenie_Live-edu--genie--ai--assistant.vercel.app-EF9F27?style=for-the-badge&labelColor=0d0d12)](https://edu-genie-ai-assistant.vercel.app/login)
 
 </div>
