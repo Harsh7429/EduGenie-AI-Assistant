@@ -18,11 +18,16 @@ import bcrypt
 import psycopg2.extras
 
 from db import get_db_connection
-from ai import generate_note, generate_quiz, generate_topics, GROQ_URL, HEADERS
+from ai import generate_note, generate_quiz, generate_topics, validate_quiz_structure, GROQ_URL, HEADERS
 from helpers import (
     compute_percentage,
     generate_smart_feedback,
     compute_streaks,
+    classify_performance,
+    recommend_difficulty,
+    generate_study_plan,
+    generate_insights,
+    quiz_cache,
 )
 import requests
 
@@ -478,12 +483,24 @@ def ai_generate_quiz():
         else:
             return jsonify({"error": "Provide either subject_id + topic_id or subject_name + topic_name"}), 400
 
-        quiz_raw = generate_quiz(subject_name, topic_name, difficulty, num_questions)
+        # Bug-fix #9: check cache before hitting Groq API
+        cache_key = quiz_cache.make_key(subject_name, topic_name, difficulty, num_questions)
+        cached    = quiz_cache.get(cache_key)
+        if cached:
+            quiz_content = cached
+        else:
+            quiz_raw = generate_quiz(subject_name, topic_name, difficulty, num_questions)
+            try:
+                quiz_content = json.loads(quiz_raw)
+            except (json.JSONDecodeError, TypeError):
+                return jsonify({"error": "AI returned invalid JSON format"}), 500
 
-        try:
-            quiz_content = json.loads(quiz_raw)
-        except (json.JSONDecodeError, TypeError):
-            return jsonify({"error": "AI returned invalid JSON format"}), 500
+            # Bug-fix #7: validate quiz structure before persisting
+            valid, reason = validate_quiz_structure(quiz_content)
+            if not valid:
+                return jsonify({"error": f"AI returned invalid quiz format: {reason}"}), 500
+
+            quiz_cache.set(cache_key, quiz_content)
 
         quiz_content_json = json.dumps(quiz_content)
 
@@ -633,8 +650,9 @@ def submit_quiz(quiz_id):
     user_id = int(get_jwt_identity())
     data    = request.json or {}
 
-    score       = data.get("score")
-    total_marks = data.get("total_marks")
+    score        = data.get("score")
+    total_marks  = data.get("total_marks")
+    user_answers = data.get("user_answers")  # Bug-fix #6: read answers from request
 
     if score is None or total_marks is None:
         return jsonify({"error": "Score and total marks required"}), 400
@@ -648,6 +666,7 @@ def submit_quiz(quiz_id):
     progress_pct = 0.0
 
     try:
+        import json as _json
         cur = dict_cursor(conn)
         cur.execute("SELECT subject_id, topic_id FROM quizzes WHERE id = %s", (quiz_id,))
         quiz = cur.fetchone()
@@ -659,11 +678,14 @@ def submit_quiz(quiz_id):
         subject_id = quiz["subject_id"]
         topic_id   = quiz["topic_id"]
 
+        # Bug-fix #6: persist answers in the answers JSONB column
         cur = conn.cursor()
         cur.execute("""
-            INSERT INTO quiz_attempts (user_id, subject_id, topic_id, quiz_id, score, total_marks)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (user_id, subject_id, topic_id, quiz_id, float(score), float(total_marks)))
+            INSERT INTO quiz_attempts (user_id, subject_id, topic_id, quiz_id, score, total_marks, answers)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (user_id, subject_id, topic_id, quiz_id,
+              float(score), float(total_marks),
+              _json.dumps(user_answers) if user_answers is not None else None))
         conn.commit()
         cur.close()
 
@@ -727,27 +749,54 @@ def submit_quiz(quiz_id):
         conn.commit()
         cur.close()
 
+        # Bug-fix #8: upsert topic_progress so the analytics can compute weak/strong topics
+        if topic_id is not None:
+            pct_this_attempt = (float(score) / float(total_marks)) * 100
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO topic_progress
+                    (user_id, subject_id, topic_id, avg_score, attempts, is_weak, last_updated)
+                VALUES (%s, %s, %s, %s, 1, %s, CURRENT_TIMESTAMP)
+                ON CONFLICT (user_id, subject_id, topic_id) DO UPDATE SET
+                    avg_score    = (topic_progress.avg_score * topic_progress.attempts + %s)
+                                   / (topic_progress.attempts + 1),
+                    attempts     = topic_progress.attempts + 1,
+                    is_weak      = ((topic_progress.avg_score * topic_progress.attempts + %s)
+                                   / (topic_progress.attempts + 1)) < 50,
+                    last_updated = CURRENT_TIMESTAMP
+            """, (user_id, subject_id, topic_id,
+                  pct_this_attempt, pct_this_attempt < 50,
+                  pct_this_attempt, pct_this_attempt))
+            conn.commit()
+            cur.close()
+
     except Exception as e:
         print("submit_quiz error:", e)
         conn.rollback()
-        conn.close()
         return jsonify({"error": f"Submission failed: {str(e)}"}), 500
 
-    conn.close()
+    finally:
+        conn.close()
 
-    # Use helpers to generate smart feedback based on this submission score
+    # Bug-fix #2: wrap feedback fields in a nested object so SmartResultBanner can read them
+    # Bug-fix #3: rename next_difficulty → recommended_difficulty to match frontend
     percentage = compute_percentage(float(score), float(total_marks))
     feedback   = generate_smart_feedback(percentage)
+    is_weak    = percentage < 50
 
     return jsonify({
-        "message":             "Quiz submitted successfully",
-        "average_score":       round(avg_score, 2),
-        "progress_percentage": progress_pct,
-        "percentage":          percentage,
-        "feedback":            feedback["message"],
-        "action":              feedback["action"],
-        "performance_level":   feedback["performance_level"],
-        "next_difficulty":     feedback["next_difficulty"],
+        "message":                "Quiz submitted successfully",
+        "average_score":          round(avg_score, 2),
+        "progress_percentage":    progress_pct,
+        "percentage":             percentage,
+        "is_weak":                is_weak,
+        "performance_level":      feedback["performance_level"],
+        "recommended_difficulty": feedback["next_difficulty"],   # renamed from next_difficulty
+        "feedback": {
+            "message":          feedback["message"],
+            "action":           feedback["action"],
+            "confidence_level": feedback["confidence_level"],
+        },
     }), 200
 
 
@@ -804,10 +853,12 @@ def get_personal_analytics():
         recent_raw = cur.fetchall()
         cur.close()
 
+        # Bug-fix #5: add iso_date so the ActivityHeatmap can key off YYYY-MM-DD
         trend = [{
-            "date":    r["attempt_date"].strftime("%d %b") if r["attempt_date"] else "",
-            "score":   float(r["pct"]),
-            "subject": r["subject"],
+            "date":     r["attempt_date"].strftime("%d %b") if r["attempt_date"] else "",
+            "iso_date": r["attempt_date"].strftime("%Y-%m-%d") if r["attempt_date"] else "",
+            "score":    float(r["pct"]),
+            "subject":  r["subject"],
         } for r in reversed(recent_raw)]
 
         cur = dict_cursor(conn)
@@ -823,6 +874,11 @@ def get_personal_analytics():
         subject_perf = cur.fetchall()
         cur.close()
 
+        subject_perf_norm = [
+            {"subject": r["subject_name"], "avg": float(r["avg_pct"]), "attempts": r["attempts"]}
+            for r in subject_perf
+        ]
+
         cur = conn.cursor()
         cur.execute("""
             SELECT
@@ -835,32 +891,118 @@ def get_personal_analytics():
         diff_row = cur.fetchone()
         cur.close()
 
-        return jsonify({
-            "total_attempts":    total_attempts,
-            "overall_avg":       overall_avg,
-            "total_notes":       total_notes,
-            "best_subject":      best["subject_name"] if best else None,
-            "best_subject_score": round(float(best["avg_pct"]), 1) if best else 0,
-            "trend":             trend,
-            "subject_performance": [
-                {"subject": r["subject_name"], "avg": float(r["avg_pct"]), "attempts": r["attempts"]}
-                for r in subject_perf
+        # Bug-fix #4: query topic_progress for weak/strong topic breakdowns
+        cur = dict_cursor(conn)
+        cur.execute("""
+            SELECT tp.topic_id, t.name AS topic, s.name AS subject,
+                   ROUND(CAST(tp.avg_score AS NUMERIC), 1) AS avg,
+                   tp.attempts
+            FROM topic_progress tp
+            JOIN topics   t ON tp.topic_id   = t.id
+            JOIN subjects s ON tp.subject_id = s.id
+            WHERE tp.user_id = %s AND tp.avg_score < 50
+            ORDER BY tp.avg_score ASC LIMIT 5
+        """, (user_id,))
+        weak_topics_rows = cur.fetchall()
+        cur.close()
+
+        cur = dict_cursor(conn)
+        cur.execute("""
+            SELECT tp.topic_id, t.name AS topic, s.name AS subject,
+                   ROUND(CAST(tp.avg_score AS NUMERIC), 1) AS avg,
+                   tp.attempts
+            FROM topic_progress tp
+            JOIN topics   t ON tp.topic_id   = t.id
+            JOIN subjects s ON tp.subject_id = s.id
+            WHERE tp.user_id = %s AND tp.avg_score >= 80
+            ORDER BY tp.avg_score DESC LIMIT 5
+        """, (user_id,))
+        strong_topics_rows = cur.fetchall()
+        cur.close()
+
+        weak_topics   = [dict(r) for r in weak_topics_rows]
+        strong_topics = [dict(r) for r in strong_topics_rows]
+
+        # Bug-fix #4: compute streak using all attempt dates
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT attempt_date FROM quiz_attempts WHERE user_id = %s", (user_id,)
+        )
+        attempt_dates = [r[0] for r in cur.fetchall()]
+        cur.close()
+        streak = compute_streaks(attempt_dates)
+
+        # Bug-fix #4: classify performance and recommend next difficulty
+        performance_level   = classify_performance(overall_avg)
+        rec_difficulty      = recommend_difficulty(overall_avg)
+
+        # Bug-fix #4: compute improvement trend from recent scores
+        trend_scores = [d["score"] for d in trend]
+        if len(trend_scores) >= 3:
+            half       = len(trend_scores) // 2
+            first_avg  = sum(trend_scores[:half]) / half
+            second_avg = sum(trend_scores[half:]) / len(trend_scores[half:])
+            if second_avg > first_avg + 5:
+                improvement_trend = "improving"
+            elif second_avg < first_avg - 5:
+                improvement_trend = "declining"
+            else:
+                improvement_trend = "neutral"
+        else:
+            improvement_trend = "neutral"
+
+        # Bug-fix #4: generate AI-powered study plan and insights
+        study_plan = generate_study_plan(
+            weak_topics=[
+                {"topic": t["topic"], "subject": t["subject"],
+                 "avg": float(t["avg"]), "attempts": t["attempts"]}
+                for t in weak_topics
             ],
+            improvement_trend=improvement_trend,
+            subject_perf=subject_perf_norm,
+        )
+        insights = generate_insights(
+            trend_data=trend,
+            subject_perf=subject_perf_norm,
+            weak_topics=weak_topics,
+            strong_topics=strong_topics,
+            total_attempts=total_attempts,
+            improvement_trend=improvement_trend,
+            current_streak=streak["current"],
+            overall_avg=overall_avg,
+        )
+
+        return jsonify({
+            "total_attempts":         total_attempts,
+            "overall_avg":            overall_avg,
+            "total_notes":            total_notes,
+            "best_subject":           best["subject_name"] if best else None,
+            "best_subject_score":     round(float(best["avg_pct"]), 1) if best else 0,
+            "trend":                  trend,
+            "subject_performance":    subject_perf_norm,
             "difficulty_breakdown": {
                 "strong":  int(diff_row[0] or 0),
                 "average": int(diff_row[1] or 0),
                 "weak":    int(diff_row[2] or 0),
             },
+            # Bug-fix #4: all the intelligent fields helpers.py was computing but never sending
+            "weak_topics":            weak_topics,
+            "strong_topics":          strong_topics,
+            "improvement_trend":      improvement_trend,
+            "learning_streak":        streak,
+            "performance_level":      performance_level,
+            "recommended_difficulty": rec_difficulty,
+            "study_plan":             study_plan,
+            "insights":               insights,
         }), 200
 
     except Exception as e:
         print("analytics error:", e)
         conn.rollback()
-        conn.close()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500  # Bug-fix #1: removed conn.close() from except
 
     finally:
-        conn.close()
+        conn.close()  # Bug-fix #1: single close — always runs
 
 
 # =========================
@@ -933,11 +1075,10 @@ def get_personal_dashboard():
     except Exception as e:
         print("personal dashboard error:", e)
         conn.rollback()
-        conn.close()
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500  # Bug-fix #1: removed conn.close() from except
 
     finally:
-        conn.close()
+        conn.close()  # Bug-fix #1: single close — always runs
 
 
 # =========================

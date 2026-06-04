@@ -34,7 +34,7 @@ function TrendChart({ data }) {
 function ActivityHeatmap({ trend }) {
   const weeks=14; const today=new Date(); const cells=[];
   for(let w=weeks-1;w>=0;w--) for(let d=0;d<7;d++){ const dt=new Date(today); dt.setDate(today.getDate()-(w*7+(6-d))); cells.push(dt.toISOString().split("T")[0]); }
-  const countMap={}; (trend||[]).forEach(a=>{ const day=(a.date||"").split(" ").pop(); if(day) countMap[day]=(countMap[day]||0)+1; });
+  const countMap={}; (trend||[]).forEach(a=>{ const day=a.iso_date||(a.date||""); if(day) countMap[day]=(countMap[day]||0)+1; });
   const gc=date=>{ const c=countMap[date]||0; if(!c) return "var(--bg-4)"; if(c===1) return "rgba(239,159,39,.22)"; if(c===2) return "rgba(239,159,39,.48)"; if(c===3) return "rgba(239,159,39,.72)"; return "var(--amber)"; };
   return (
     <div>
