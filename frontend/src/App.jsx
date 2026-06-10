@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import Login     from "./pages/Login";
 import Signup    from "./pages/Signup";
@@ -30,13 +30,33 @@ function PageLoader() {
 }
 
 /**
- * PrivateRoute — wraps a page in the app Layout and checks for an active
- * JWT token. Redirects to /login if the user is not authenticated.
+ * isTokenValid — decodes the JWT payload (no library needed, just base64)
+ * and checks the expiry claim. Returns false for missing, malformed,
+ * or expired tokens so we never silently pass an invalid session.
+ */
+function isTokenValid() {
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) return false;
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    // exp is Unix epoch in seconds; Date.now() is ms
+    return payload.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * PrivateRoute — wraps a page in the app Layout and validates the JWT.
+ * Redirects to /login if unauthenticated or token is expired, and
+ * preserves the intended destination so Login can redirect back after auth.
  */
 function PrivateRoute({ page }) {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    return <Navigate to="/login" replace />;
+  const location = useLocation();
+  if (!isTokenValid()) {
+    // Clean up any stale/expired token before redirecting
+    localStorage.removeItem("token");
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
   return (
     <Layout>
@@ -47,23 +67,44 @@ function PrivateRoute({ page }) {
   );
 }
 
+/**
+ * PublicRoute — wraps Login and Signup.
+ * If the user already has a valid session, skip the auth pages and go
+ * straight to the dashboard (avoids the "back button to login" problem).
+ */
+function PublicRoute({ element }) {
+  if (isTokenValid()) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return element;
+}
+
+/**
+ * RootRedirect — handles the bare "/" path.
+ * Logged-in users → dashboard. Everyone else → login.
+ * Single hop, no intermediate /dashboard bounce.
+ */
+function RootRedirect() {
+  return <Navigate to={isTokenValid() ? "/dashboard" : "/login"} replace />;
+}
+
 export default function App() {
   return (
     <>
       <ToastContainer />
       <Routes>
-        {/* Public routes */}
-        <Route path="/login"  element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
+        {/* Root — auth-aware single-hop redirect */}
+        <Route path="/" element={<RootRedirect />} />
 
-        {/* Root redirect */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Public routes — redirect to dashboard if already logged in */}
+        <Route path="/login"  element={<PublicRoute element={<Login />} />} />
+        <Route path="/signup" element={<PublicRoute element={<Signup />} />} />
 
         {/* Protected routes */}
         <Route path="/dashboard"           element={<PrivateRoute page={<Dashboard />} />} />
         <Route path="/subjects"            element={<PrivateRoute page={<Subjects />} />} />
-        <Route path="/subjects/:subjectId/units" element={<PrivateRoute page={<Units />} />} /> {/* Bug-fix #10 */}
-        <Route path="/topics/:unitId"      element={<PrivateRoute page={<Topics />} />} />      {/* Bug-fix #10 */}
+        <Route path="/subjects/:subjectId/units" element={<PrivateRoute page={<Units />} />} />
+        <Route path="/topics/:unitId"      element={<PrivateRoute page={<Topics />} />} />
         <Route path="/generate-note"       element={<PrivateRoute page={<GenerateNote />} />} />
         <Route path="/generate-quiz"       element={<PrivateRoute page={<GenerateQuiz />} />} />
         <Route path="/my-quizzes"          element={<PrivateRoute page={<MyQuizzes />} />} />

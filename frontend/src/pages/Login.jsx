@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import api from "../services/api";
 
 const CHIPS = [
@@ -19,6 +19,9 @@ export default function Login() {
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  // If the user was redirected here from a protected page, send them back after login
+  const from = location.state?.from?.pathname || "/dashboard";
 
   const handleLogin = async e => {
     e.preventDefault(); setError("");
@@ -27,7 +30,7 @@ export default function Login() {
       setLoading(true);
       const r = await api.post("/login", { email, password });
       localStorage.setItem("token", r.data.access_token);
-      navigate("/dashboard");
+      navigate(from, { replace: true });
     } catch (err) {
       setError(err.response?.status === 401 ? "Invalid email or password." : "Something went wrong. Try again.");
     } finally { setLoading(false); }
